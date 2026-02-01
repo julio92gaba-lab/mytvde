@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>My TVDE - Gestão Profissional</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <style>
+    /* BASE */
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'Inter', sans-serif; background-color: #000; color: #fff; display: flex; justify-content: center; overflow-x: hidden; }
+    .app-container { width: 100%; max-width: 415px; min-height: 100vh; background-color: #393838; position: relative; padding-top: 65px; padding-bottom: 100px; }
+    
+    header { 
+      position: fixed; top: 0; width: 100%; max-width: 415px; height: 65px; 
+      background-color: #000; background-image: url("https://iili.io/f6N6XVe.jpg"); 
+      background-repeat: no-repeat; background-position: center center; background-size: contain; z-index: 1000; 
+    }
+    .header-subtext { text-align: center; color: #afafaf; font-size: 10px; margin-top: 48px; font-weight: 300; letter-spacing: 0.5px; }
+
+    /* TRANSIÇÕES */
+    .tab-content { display: none; padding: 0 12px; animation: slideUpFade 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .tab-content.active { display: block; }
+    @keyframes slideUpFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* CARDS */
+    .card { width: 100%; background-color: #000; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid #222; }
+    .section-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    
+    .nav-data-container { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 15px; }
+    .nav-arrow { color: #00bf63; font-weight: bold; font-size: 22px; cursor: pointer; padding: 0 15px; }
+    .nav-arrow.disabled { opacity: 0.2; pointer-events: none; }
+    .section-date { font-size: 13px; font-weight: bold; text-align: center; flex: 1; }
+
+    /* TABELAS */
+    .table-container { width: 100%; border-collapse: collapse; font-size: 11px; color: white; margin-top: 5px; }
+    .table-container th, .table-container td { border: 1px solid #333; padding: 8px 5px; text-align: center; }
+    .table-container th { background: #1a1a1a; color: #00bf63; }
+    .resumo-line { border-radius: 4px; padding: 10px; display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 500; }
+
+    /* DOCK iOS */
+    .dock-container {
+      position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
+      width: 92%; max-width: 380px; height: 65px;
+      background: rgba(30, 30, 30, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 25px;
+      display: flex; justify-content: space-around; align-items: center; z-index: 2000;
+    }
+    .dock-item { display: flex; flex-direction: column; align-items: center; color: #888; cursor: pointer; position: relative; transition: 0.3s; }
+    .dock-item.active { color: #00bf63; transform: translateY(-3px); }
+    .dock-item span { font-size: 10px; font-weight: 600; margin-top: 4px; }
+    .dock-item.active::after { content: ''; position: absolute; bottom: -8px; width: 4px; height: 4px; background: #00bf63; border-radius: 50%; }
+
+    /* INPUTS */
+    .km-input { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #444; background: #111; color: #fff; text-align: center; font-size: 14px; }
+    .btn-add { background: #00bf63; color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-size: 11px; cursor: pointer; font-weight: bold; }
+    
+    /* MODAL */
+    .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
+    .modal-content { background: #222; padding: 20px; border-radius: 15px; width: 85%; max-width: 350px; }
+    .modal-input, .modal-select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; background: #333; color: #fff; border: 1px solid #444; }
+  </style>
+</head>
+<body>
+
+  <header><div class="header-subtext">Gestão Financeira e Operacional</div></header>
+
+  <div class="app-container">
+    <section id="tab-dia" class="tab-content active">
+      <div class="nav-data-container">
+        <span class="nav-arrow" onclick="mudarData(-1)">&#10094;</span>
+        <div id="label-dia" class="section-date"></div>
+        <span class="nav-arrow" id="seta-dia-next" onclick="mudarData(1)">&#10095;</span>
+      </div>
+      <div class="card">
+        <div class="section-title">Rendimentos <span id="dia-total-bruto" style="color:#00bf63;">€ 0,00</span></div>
+        <div style="display:flex; gap:10px;">
+          <div id="uber-slot" style="flex:1"></div>
+          <div id="bolt-slot" style="flex:1"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title">Despesas <button class="btn-add" onclick="abrirModalDespesa()">+ Adicionar</button></div>
+        <div id="lista-despesas-dia"></div>
+      </div>
+      <div class="card">
+        <div class="section-title">Quilometragem</div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <input type="number" id="km-inicio" class="km-input" placeholder="Início" onchange="salvarDadosDia()">
+          <input type="number" id="km-fim" class="km-input" placeholder="Fim" onchange="salvarDadosDia()">
+        </div>
+        <div id="km-total-dia" style="text-align:center; margin-top:10px; font-weight:bold; color:#00bf63;">0 km</div>
+      </div>
+    </section>
+
+    <section id="tab-semana" class="tab-content">
+      <div class="nav-data-container">
+        <span class="nav-arrow" onclick="mudarData(-7)">&#10094;</span>
+        <div id="label-semana" class="section-date"></div>
+        <span class="nav-arrow" id="seta-semana-next" onclick="mudarData(7)">&#10095;</span>
+      </div>
+      <div class="card">
+        <div class="section-title">Resumo Financeiro <span id="semana-vv-status" onclick="abrirModalVV()" style="font-size:10px; text-decoration:underline; cursor:pointer;">Via Verde</span></div>
+        <div class="resumo-line" style="background:#00bf63; color:#000;" id="semana-liquido-row">
+          <span>Líquido a receber:</span><span id="semana-val-liquido">€ 0,00</span>
+        </div>
+        <div class="resumo-line" style="background:#333;">
+          <span>Distância Total:</span><span id="semana-val-km">0 km</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="section-title" style="font-size:14px;">Detalhamento de Ganhos</div>
+        <table class="table-container">
+          <thead><tr><th>Dia</th><th>Uber</th><th>Bolt</th><th>Total</th></tr></thead>
+          <tbody id="semana-tabela-corpo"></tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="section-title" style="font-size:14px;">Custos Detalhados</div>
+        <div id="semana-lista-custos"></div>
+        <div class="resumo-line" style="background:#111; border:1px solid #444; margin-top:10px; font-weight:bold;">
+            <span>Total de Custos:</span><span id="semana-val-total-custos" style="color:#ff6b6b;">€ 0,00</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-mes" class="tab-content">
+      <div class="nav-data-container">
+        <span class="nav-arrow" onclick="mudarMes(-1)">&#10094;</span>
+        <div id="label-mes" class="section-date"></div>
+        <span class="nav-arrow" id="seta-mes-next" onclick="mudarMes(1)">&#10095;</span>
+      </div>
+      <div class="card">
+        <button class="btn-add" style="width:100%; padding:12px; font-size:14px; background:#1d6f42;" onclick="exportarParaExcel()">📥 BAIXAR RELATÓRIO EXCEL</button>
+      </div>
+      <div class="card">
+        <div class="section-title">Fechamento do Mês</div>
+        <table class="table-container">
+          <thead><tr><th>Categoria</th><th>Entradas</th><th>Saídas</th></tr></thead>
+          <tbody id="mes-tabela-corpo"></tbody>
+          <tfoot>
+            <tr style="background:#111; font-weight:bold; font-size:13px;">
+              <td>SALDO FINAL</td>
+              <td colspan="2" id="mes-saldo-final" style="color:#00bf63;">€ 0,00</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <nav class="dock-container">
+      <div class="dock-item active" onclick="switchTab('dia', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+        <span>Dia</span>
+      </div>
+      <div class="dock-item" onclick="switchTab('semana', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20v-6M6 20V10M18 20V4"></path></svg>
+        <span>Semana</span>
+      </div>
+      <div class="dock-item" onclick="switchTab('mes', this)">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+        <span>Mês</span>
+      </div>
+    </nav>
+  </div>
+
+  <div id="modal-geral" class="modal">
+    <div class="modal-content">
+      <h3 id="modal-titulo" style="margin-bottom:15px; font-size:16px; color:#00bf63;"></h3>
+      <div id="modal-body"></div>
+      <div style="display:flex; justify-content:flex-end; gap:10px;">
+        <button onclick="fecharModal()" style="padding:10px; background:#444; border:none; border-radius:5px; color:#fff;">Cancelar</button>
+        <button id="btn-confirmar" style="padding:10px; background:#00bf63; border:none; border-radius:5px; color:#fff;">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let dataRef = new Date(); dataRef.setHours(0,0,0,0);
+    const HOJE = new Date(); HOJE.setHours(0,0,0,0);
+    let abaAtual = 'dia';
+
+    function n(valor) { 
+        let num = parseFloat(valor);
+        return isNaN(num) ? 0 : num;
+    }
+
+    function f(valor) {
+        return n(valor).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function getPeriodoSemana(data) {
+      const d = new Date(data);
+      const day = d.getDay();
+      const diff = d.getDate() - (day === 0 ? 6 : day - 1);
+      const segunda = new Date(d.setDate(diff));
+      segunda.setHours(0,0,0,0);
+      const domingo = new Date(segunda); 
+      domingo.setDate(segunda.getDate() + 6);
+      return { segunda, domingo };
+    }
+
+    function switchTab(aba, el) {
+      abaAtual = aba;
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.dock-item').forEach(i => i.classList.remove('active'));
+      document.getElementById('tab-' + aba).classList.add('active');
+      el.classList.add('active');
+      render();
+    }
+
+    function mudarData(dias) { dataRef.setDate(dataRef.getDate() + dias); render(); }
+    function mudarMes(meses) { dataRef.setMonth(dataRef.getMonth() + meses); render(); }
+
+    function render() {
+      const isFuturoDia = dataRef >= HOJE;
+      const { segunda } = getPeriodoSemana(dataRef);
+      const { segunda: segundaHoje } = getPeriodoSemana(HOJE);
+      const isFuturoSemana = segunda >= segundaHoje;
+      const isFuturoMes = dataRef.getMonth() >= HOJE.getMonth() && dataRef.getFullYear() >= HOJE.getFullYear();
+
+      document.getElementById('seta-dia-next').classList.toggle('disabled', isFuturoDia);
+      document.getElementById('seta-semana-next').classList.toggle('disabled', isFuturoSemana);
+      document.getElementById('seta-mes-next').classList.toggle('disabled', isFuturoMes);
+
+      if(abaAtual === 'dia') renderDia();
+      if(abaAtual === 'semana') renderSemana();
+      if(abaAtual === 'mes') renderMes();
+    }
+
+    function renderDia() {
+      const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      const s = JSON.parse(localStorage.getItem(key)) || { uber: null, bolt: null, despesas: [], kmInicio: "", kmFim: "" };
+      document.getElementById('label-dia').innerText = dataRef.toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
+      const bU = n(s.uber); const bB = n(s.bolt);
+      document.getElementById('dia-total-bruto').innerText = `€ ${f(bU + bB)}`;
+      document.getElementById('uber-slot').innerHTML = renderBtnPlat('uber', s.uber);
+      document.getElementById('bolt-slot').innerHTML = renderBtnPlat('bolt', s.bolt);
+      const lista = document.getElementById('lista-despesas-dia');
+      lista.innerHTML = (s.despesas && s.despesas.length) ? "" : "<p style='color:#666; font-size:11px;'>Sem despesas.</p>";
+      if(s.despesas) {
+        s.despesas.forEach((d, i) => {
+          lista.innerHTML += `<div class="resumo-line" style="background:#222; margin-bottom:4px; padding:6px 10px;">
+            <span style="font-size:11px;">${d.cat}: € ${f(d.val)}</span>
+            <span style="color:#ff6b6b; cursor:pointer; font-weight:bold;" onclick="deletarDespesa(${i})">X</span>
+          </div>`;
+        });
+      }
+      document.getElementById('km-inicio').value = s.kmInicio || "";
+      document.getElementById('km-fim').value = s.kmFim || "";
+      const totalKm = Math.max(0, n(s.kmFim) - n(s.kmInicio));
+      document.getElementById('km-total-dia').innerText = totalKm + " km";
+    }
+
+    function renderBtnPlat(p, v) {
+      if(v === null || v === "") return `<button class="km-input" style="background:#fff; color:#000; font-weight:bold;" onclick="abrirModalRendimento('${p}')">${p.toUpperCase()}</button>`;
+      return `<div class="resumo-line" style="background:#111; border:1px solid #333; margin:0;" onclick="abrirModalRendimento('${p}')"><span>${p.toUpperCase()}</span><span>€ ${f(v)}</span></div>`;
+    }
+
+    function renderSemana() {
+      const { segunda, domingo } = getPeriodoSemana(dataRef);
+      document.getElementById('label-semana').innerText = `${segunda.getDate()} ${segunda.toLocaleString('pt-BR',{month:'short'})} - ${domingo.getDate()} ${domingo.toLocaleString('pt-BR',{month:'short'})}`;
+      let tU = 0, tB = 0, tK = 0;
+      let custos = { "Combustível": 0, "Comida": 0, "Administrativo": 0, "Outros": 0 };
+      let html = "";
+      for(let i=0; i<7; i++) {
+        let d = new Date(segunda); d.setDate(segunda.getDate() + i);
+        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[], kmInicio:0, kmFim:0};
+        let diaU = n(s.uber); let diaB = n(s.bolt);
+        tU += diaU; tB += diaB;
+        tK += Math.max(0, n(s.kmFim) - n(s.kmInicio));
+        if(s.despesas) {
+            s.despesas.forEach(dp => {
+                if(custos[dp.cat] !== undefined) custos[dp.cat] += n(dp.val);
+                else custos["Outros"] += n(dp.val);
+            });
+        }
+        html += `<tr><td>${d.getDate()}</td><td>${f(diaU)}</td><td>${f(diaB)}</td><td>${f(diaU+diaB)}</td></tr>`;
+      }
+      const keyVV = "vv_" + segunda.toISOString().split('T')[0];
+      const valVV = n(localStorage.getItem(keyVV));
+      const bruto = tU + tB;
+      const taxa = bruto * 0.08;
+      const somaCustos = Object.values(custos).reduce((a,b)=>a+b, 0);
+      const totalOut = taxa + valVV + somaCustos;
+      
+      document.getElementById('semana-vv-status').innerText = valVV > 0 ? `Via Verde: € ${f(valVV)}` : "❌ Via Verde";
+      document.getElementById('semana-tabela-corpo').innerHTML = html + `<tr style="font-weight:bold; background:#111;"><td>TOT</td><td>${f(tU)}</td><td>${f(tB)}</td><td style="color:#00bf63">${f(bruto)}</td></tr>`;
+      document.getElementById('semana-val-liquido').innerText = `€ ${f(bruto - totalOut)}`;
+      document.getElementById('semana-val-km').innerText = tK + " km";
+      document.getElementById('semana-val-total-custos').innerText = `€ ${f(totalOut)}`;
+
+      let hC = `<div class="resumo-line" style="background:#ff6b6b; color:#000;"><span>Taxa Plataforma (8%)</span><span>€ ${f(taxa)}</span></div>`;
+      if(valVV > 0) hC += `<div class="resumo-line" style="background:#4da3ff; color:#000;"><span>Via Verde</span><span>€ ${f(valVV)}</span></div>`;
+      const cores = { "Combustível": "#ffd93d", "Comida": "#ff8000", "Administrativo": "#a288e3", "Outros": "#888" };
+      for(let c in custos) if(custos[c] > 0) hC += `<div class="resumo-line" style="background:${cores[c]}; color:#000;"><span>${c}</span><span>€ ${f(custos[c])}</span></div>`;
+      document.getElementById('semana-lista-custos').innerHTML = hC;
+    }
+
+    function renderMes() {
+      document.getElementById('label-mes').innerText = dataRef.toLocaleString('pt-BR', {month:'long', year:'numeric'}).toUpperCase();
+      let ent = 0, sai = { Taxas:0, "Via Verde":0, Combustível:0, Comida:0, Administrativo:0, Outros:0 };
+      let d = new Date(dataRef.getFullYear(), dataRef.getMonth(), 1);
+      while(d.getMonth() === dataRef.getMonth()) {
+        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[]};
+        let b = n(s.uber) + n(s.bolt);
+        ent += b; sai.Taxas += b * 0.08;
+        if(s.despesas) s.despesas.forEach(dp => { if(sai[dp.cat] !== undefined) sai[dp.cat] += n(dp.val); else sai.Outros += n(dp.val); });
+        d.setDate(d.getDate() + 1);
+      }
+      for(let k in localStorage) if(k.startsWith("vv_") && k.includes(dataRef.toISOString().slice(0,7))) sai["Via Verde"] += n(localStorage.getItem(k));
+      let h = `<tr><td>Rend. Brutos</td><td style="color:#00bf63">+ € ${f(ent)}</td><td>-</td></tr>`;
+      let totalS = 0;
+      for(let c in sai) { if(sai[c] > 0) { h += `<tr><td>${c}</td><td>-</td><td style="color:#ff6b6b">€ ${f(sai[c])}</td></tr>`; totalS += sai[c]; } }
+      document.getElementById('mes-tabela-corpo').innerHTML = h;
+      document.getElementById('mes-saldo-final').innerText = `€ ${f(ent - totalS)}`;
+    }
+
+    function salvarDadosDia() {
+      const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
+      s.kmInicio = document.getElementById('km-inicio').value;
+      s.kmFim = document.getElementById('km-fim').value;
+      localStorage.setItem(key, JSON.stringify(s));
+      render();
+    }
+
+    function abrirModalRendimento(p) {
+      document.getElementById('modal-titulo').innerText = "Rendimento " + p.toUpperCase();
+      document.getElementById('modal-body').innerHTML = `<input type="number" id="val-p" class="modal-input" placeholder="0.00">`;
+      document.getElementById('modal-geral').style.display = "flex";
+      document.getElementById('btn-confirmar').onclick = () => {
+        let v = document.getElementById('val-p').value;
+        const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
+        s[p] = v === "" ? null : v;
+        localStorage.setItem(key, JSON.stringify(s));
+        fecharModal(); render();
+      };
+    }
+
+    function abrirModalDespesa() {
+      document.getElementById('modal-titulo').innerText = "Nova Despesa";
+      document.getElementById('modal-body').innerHTML = `<select id="cat-d" class="modal-select" onchange="document.getElementById('out-d').style.display=(this.value=='Outros'?'block':'none')"><option value="Combustível">Combustível</option><option value="Comida">Comida</option><option value="Administrativo">Administrativo</option><option value="Outros">Outro (Digitar)</option></select><input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?"><input type="number" id="val-d" class="modal-input" placeholder="0.00">`;
+      document.getElementById('modal-geral').style.display = "flex";
+      document.getElementById('btn-confirmar').onclick = () => {
+        let c = document.getElementById('cat-d').value;
+        if(c == 'Outros') c = document.getElementById('out-d').value || "Outros";
+        let v = n(document.getElementById('val-d').value);
+        if(v <= 0) return;
+        const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
+        s.despesas.push({ cat: c, val: v });
+        localStorage.setItem(key, JSON.stringify(s));
+        fecharModal(); render();
+      };
+    }
+
+    function deletarDespesa(i) {
+      const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      let s = JSON.parse(localStorage.getItem(key));
+      s.despesas.splice(i, 1);
+      localStorage.setItem(key, JSON.stringify(s));
+      render();
+    }
+
+    function abrirModalVV() {
+      const { segunda } = getPeriodoSemana(dataRef);
+      const key = "vv_" + segunda.toISOString().split('T')[0];
+      document.getElementById('modal-titulo').innerText = "Via Verde Semanal";
+      document.getElementById('modal-body').innerHTML = `<input type="number" id="val-vv" class="modal-input" value="${localStorage.getItem(key)||''}">`;
+      document.getElementById('modal-geral').style.display = "flex";
+      document.getElementById('btn-confirmar').onclick = () => {
+        localStorage.setItem(key, document.getElementById('val-vv').value);
+        fecharModal(); render();
+      };
+    }
+
+    function exportarParaExcel() {
+        const mesAlvo = dataRef.getMonth();
+        const anoAlvo = dataRef.getFullYear();
+        let wsData = [];
+        
+        // 1. Encontrar o início: retrocede até a segunda-feira da semana que contém o dia 1
+        let d1 = new Date(anoAlvo, mesAlvo, 1);
+        let currentSegunda = new Date(d1);
+        let offset = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
+        currentSegunda.setDate(d1.getDate() - offset);
+        currentSegunda.setHours(0,0,0,0);
+
+        let semanasRelatorio = [];
+
+        // 2. Loop para verificar até 6 semanas possíveis
+        for(let s=0; s<6; s++) {
+            let tempSeg = new Date(currentSegunda);
+            let diasNoMes = 0;
+            
+            // Conta quantos dias desta semana (Seg a Dom) caem no mês alvo
+            for(let i=0; i<7; i++) {
+                let check = new Date(tempSeg);
+                check.setDate(tempSeg.getDate() + i);
+                if(check.getMonth() === mesAlvo && check.getFullYear() === anoAlvo) {
+                    diasNoMes++;
+                }
+            }
+
+            // REGRA DOS 4 DIAS: Só inclui se tiver 4 ou mais dias no mês alvo
+            if(diasNoMes >= 4) {
+                semanasRelatorio.push(new Date(tempSeg));
+            }
+
+            // Avança para a próxima segunda
+            currentSegunda.setDate(currentSegunda.getDate() + 7);
+            
+            // Se a nova segunda já estiver muito longe no próximo mês, encerra
+            if(currentSegunda.getMonth() > mesAlvo && currentSegunda.getDate() > 7) break;
+            if(currentSegunda.getFullYear() > anoAlvo) break;
+        }
+
+        if (semanasRelatorio.length === 0) {
+            alert("Nenhuma semana completa (min 4 dias) encontrada para este mês.");
+            return;
+        }
+
+        let currentRow = 0;
+        semanasRelatorio.forEach((segunda, idx) => {
+            const domingo = new Date(segunda); domingo.setDate(segunda.getDate() + 6);
+            wsData[currentRow] = [`RELATÓRIO SEMANAL: ${segunda.toLocaleDateString()} a ${domingo.toLocaleDateString()}`];
+            wsData[currentRow + 1] = ["DIA", "UBER", "BOLT", "TOTAL", "", "RESUMO", "VALOR"];
+            
+            let sU=0, sB=0, sC=0;
+            const nomes = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
+            
+            for(let i=0; i<7; i++) {
+                let diaLoop = new Date(segunda); 
+                diaLoop.setDate(segunda.getDate() + i);
+                let key = "mytvde_" + diaLoop.toISOString().split('T')[0];
+                let dados = JSON.parse(localStorage.getItem(key)) || {uber:0, bolt:0, despesas:[]};
+                
+                let vU = n(dados.uber);
+                let vB = n(dados.bolt);
+                sU += vU; sB += vB;
+                if(dados.despesas) dados.despesas.forEach(dp => sC += n(dp.val));
+
+                wsData[currentRow + 2 + i] = [
+                    nomes[i] + " (" + diaLoop.getDate() + "/" + (diaLoop.getMonth()+1) + ")", 
+                    vU, vB, (vU + vB)
+                ];
+            }
+
+            let vvVal = n(localStorage.getItem("vv_" + segunda.toISOString().split('T')[0]));
+            let txVal = (sU + sB) * 0.08;
+
+            wsData[currentRow + 2][5] = "Uber Bruto"; wsData[currentRow + 2][6] = sU;
+            wsData[currentRow + 3][5] = "Bolt Bruto"; wsData[currentRow + 3][6] = sB;
+            wsData[currentRow + 4][5] = "TOTAL BRUTO"; wsData[currentRow + 4][6] = sU + sB;
+            wsData[currentRow + 5][5] = "Taxas (8%)"; wsData[currentRow + 5][6] = txVal;
+            wsData[currentRow + 6][5] = "Via Verde"; wsData[currentRow + 6][6] = vvVal;
+            wsData[currentRow + 7][5] = "Despesas"; wsData[currentRow + 7][6] = sC;
+            wsData[currentRow + 8][5] = "LÍQUIDO FINAL"; wsData[currentRow + 8][6] = (sU+sB) - (txVal + vvVal + sC);
+
+            currentRow += 11; 
+        });
+
+        let wb = XLSX.utils.book_new();
+        let ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Mensal");
+        XLSX.writeFile(wb, `TVDE_Relatorio_${mesAlvo + 1}_${anoAlvo}.xlsx`);
+    }
+
+    function fecharModal() { document.getElementById('modal-geral').style.display = "none"; }
+    render();
+  </script>
+</body>
+</html>
