@@ -3,12 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>My TVDE - Gestão Profissional</title>
-  
-  <link rel="icon" type="image/png" href="https://fv5-4.files.fm/thumb_show.php?i=kjsterb25b&view&v=1">
-  <link rel="apple-touch-icon" href="https://fv5-4.files.fm/thumb_show.php?i=kjsterb25b&view&v=1">
-  <meta name="apple-mobile-web-app-title" content="My TVDE">
-  
-  <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -59,14 +53,18 @@
     .dock-item span { font-size: 10px; font-weight: 600; margin-top: 4px; }
     .dock-item.active::after { content: ''; position: absolute; bottom: -8px; width: 4px; height: 4px; background: #00bf63; border-radius: 50%; }
 
-    /* INPUTS */
+    /* BOTÃO EXCEL */
+    .btn-excel { width:100%; padding:12px; border-radius:8px; border:none; background:#1d6f42; color:white; font-weight:bold; font-size:14px; cursor:pointer; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:10px; }
+
+    /* INPUTS / MODAL */
     .km-input { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #444; background: #111; color: #fff; text-align: center; font-size: 14px; }
     .btn-add { background: #00bf63; color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-size: 11px; cursor: pointer; font-weight: bold; }
-    
-    /* MODAL */
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: #222; padding: 20px; border-radius: 15px; width: 85%; max-width: 350px; }
     .modal-input, .modal-select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; background: #333; color: #fff; border: 1px solid #444; }
+    .reembolso-container { display: flex; gap: 10px; margin-bottom: 15px; }
+    .reembolso-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #333; color: #fff; cursor: pointer; font-size: 12px; text-align: center; }
+    .reembolso-btn.active { background: #00bf63; border-color: #00bf63; font-weight: bold; }
   </style>
 </head>
 <body>
@@ -138,20 +136,25 @@
         <div id="label-mes" class="section-date"></div>
         <span class="nav-arrow" id="seta-mes-next" onclick="mudarMes(1)">&#10095;</span>
       </div>
-      <div class="card">
-        <button class="btn-add" style="width:100%; padding:12px; font-size:14px; background:#1d6f42;" onclick="exportarParaExcel()">📥 BAIXAR RELATÓRIO EXCEL</button>
-      </div>
+      <button class="btn-excel" onclick="baixarRelatorioCompleto()">📥 BAIXAR RELATÓRIO EXCEL</button>
       <div class="card">
         <div class="section-title">Fechamento do Mês</div>
         <table class="table-container">
-          <thead><tr><th>Categoria</th><th>Entradas</th><th>Saídas</th></tr></thead>
+          <thead><tr><th>Categoria</th><th>Entradas</th><th>Saída</th><th>Saída (Re.)</th></tr></thead>
           <tbody id="mes-tabela-corpo"></tbody>
           <tfoot>
             <tr style="background:#111; font-weight:bold; font-size:13px;">
               <td>SALDO FINAL</td>
-              <td colspan="2" id="mes-saldo-final" style="color:#00bf63;">€ 0,00</td>
+              <td colspan="3" id="mes-saldo-final" style="color:#00bf63;">€ 0,00</td>
             </tr>
           </tfoot>
+        </table>
+      </div>
+      <div id="card-detalhes-outros" class="card" style="display:none;">
+        <div class="section-title">Outros</div>
+        <table class="table-container">
+          <thead><tr><th>Dia</th><th>Descrição</th><th>Saída</th><th>Saída (Re.)</th></tr></thead>
+          <tbody id="tabela-outros-corpo"></tbody>
         </table>
       </div>
     </section>
@@ -187,15 +190,10 @@
     let dataRef = new Date(); dataRef.setHours(0,0,0,0);
     const HOJE = new Date(); HOJE.setHours(0,0,0,0);
     let abaAtual = 'dia';
+    let tempReembolso = 'Não';
 
-    function n(valor) { 
-        let num = parseFloat(valor);
-        return isNaN(num) ? 0 : num;
-    }
-
-    function f(valor) {
-        return n(valor).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+    function n(v) { let num = parseFloat(v); return isNaN(num) ? 0 : num; }
+    function f(v) { return n(v).toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 
     function getPeriodoSemana(data) {
       const d = new Date(data);
@@ -217,20 +215,10 @@
       render();
     }
 
-    function mudarData(dias) { dataRef.setDate(dataRef.getDate() + dias); render(); }
-    function mudarMes(meses) { dataRef.setMonth(dataRef.getMonth() + meses); render(); }
+    function mudarData(d) { dataRef.setDate(dataRef.getDate() + d); render(); }
+    function mudarMes(m) { dataRef.setMonth(dataRef.getMonth() + m); render(); }
 
     function render() {
-      const isFuturoDia = dataRef >= HOJE;
-      const { segunda } = getPeriodoSemana(dataRef);
-      const { segunda: segundaHoje } = getPeriodoSemana(HOJE);
-      const isFuturoSemana = segunda >= segundaHoje;
-      const isFuturoMes = dataRef.getMonth() >= HOJE.getMonth() && dataRef.getFullYear() >= HOJE.getFullYear();
-
-      document.getElementById('seta-dia-next').classList.toggle('disabled', isFuturoDia);
-      document.getElementById('seta-semana-next').classList.toggle('disabled', isFuturoSemana);
-      document.getElementById('seta-mes-next').classList.toggle('disabled', isFuturoMes);
-
       if(abaAtual === 'dia') renderDia();
       if(abaAtual === 'semana') renderSemana();
       if(abaAtual === 'mes') renderMes();
@@ -240,24 +228,23 @@
       const key = "mytvde_" + dataRef.toISOString().split('T')[0];
       const s = JSON.parse(localStorage.getItem(key)) || { uber: null, bolt: null, despesas: [], kmInicio: "", kmFim: "" };
       document.getElementById('label-dia').innerText = dataRef.toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
-      const bU = n(s.uber); const bB = n(s.bolt);
-      document.getElementById('dia-total-bruto').innerText = `€ ${f(bU + bB)}`;
+      document.getElementById('dia-total-bruto').innerText = `€ ${f(n(s.uber) + n(s.bolt))}`;
       document.getElementById('uber-slot').innerHTML = renderBtnPlat('uber', s.uber);
       document.getElementById('bolt-slot').innerHTML = renderBtnPlat('bolt', s.bolt);
       const lista = document.getElementById('lista-despesas-dia');
       lista.innerHTML = (s.despesas && s.despesas.length) ? "" : "<p style='color:#666; font-size:11px;'>Sem despesas.</p>";
       if(s.despesas) {
         s.despesas.forEach((d, i) => {
+          const icone = d.reembolso === 'Sim' ? '↩ ' : '';
           lista.innerHTML += `<div class="resumo-line" style="background:#222; margin-bottom:4px; padding:6px 10px;">
-            <span style="font-size:11px;">${d.cat}: € ${f(d.val)}</span>
-            <span style="color:#ff6b6b; cursor:pointer; font-weight:bold;" onclick="deletarDespesa(${i})">X</span>
+            <span style="font-size:11px;">${icone}${d.cat}: € ${f(d.val)}</span>
+            <span style="color:#ff6b6b; cursor:pointer;" onclick="deletarDespesa(${i})">X</span>
           </div>`;
         });
       }
       document.getElementById('km-inicio').value = s.kmInicio || "";
       document.getElementById('km-fim').value = s.kmFim || "";
-      const totalKm = Math.max(0, n(s.kmFim) - n(s.kmInicio));
-      document.getElementById('km-total-dia').innerText = totalKm + " km";
+      document.getElementById('km-total-dia').innerText = Math.max(0, n(s.kmFim) - n(s.kmInicio)) + " km";
     }
 
     function renderBtnPlat(p, v) {
@@ -268,35 +255,33 @@
     function renderSemana() {
       const { segunda, domingo } = getPeriodoSemana(dataRef);
       document.getElementById('label-semana').innerText = `${segunda.getDate()} ${segunda.toLocaleString('pt-BR',{month:'short'})} - ${domingo.getDate()} ${domingo.toLocaleString('pt-BR',{month:'short'})}`;
-      let tU = 0, tB = 0, tK = 0;
+      let tU = 0, tB = 0, tK = 0, tRe = 0, tGeral = 0;
       let custos = { "Combustível": 0, "Comida": 0, "Administrativo": 0, "Outros": 0 };
       let html = "";
+
       for(let i=0; i<7; i++) {
         let d = new Date(segunda); d.setDate(segunda.getDate() + i);
-        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[], kmInicio:0, kmFim:0};
-        let diaU = n(s.uber); let diaB = n(s.bolt);
-        tU += diaU; tB += diaB;
+        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[]};
+        tU += n(s.uber); tB += n(s.bolt);
         tK += Math.max(0, n(s.kmFim) - n(s.kmInicio));
         if(s.despesas) {
-            s.despesas.forEach(dp => {
-                if(custos[dp.cat] !== undefined) custos[dp.cat] += n(dp.val);
-                else custos["Outros"] += n(dp.val);
-            });
+          s.despesas.forEach(dp => {
+            let v = n(dp.val);
+            if(custos[dp.cat] !== undefined) custos[dp.cat] += v; else custos["Outros"] += v;
+            tGeral += v; if(dp.reembolso === 'Sim') tRe += v;
+          });
         }
-        html += `<tr><td>${d.getDate()}</td><td>${f(diaU)}</td><td>${f(diaB)}</td><td>${f(diaU+diaB)}</td></tr>`;
+        html += `<tr><td>${d.getDate()}</td><td>${f(n(s.uber))}</td><td>${f(n(s.bolt))}</td><td>${f(n(s.uber)+n(s.bolt))}</td></tr>`;
       }
-      const keyVV = "vv_" + segunda.toISOString().split('T')[0];
-      const valVV = n(localStorage.getItem(keyVV));
+      const valVV = n(localStorage.getItem("vv_" + segunda.toISOString().split('T')[0]));
       const bruto = tU + tB;
       const taxa = bruto * 0.08;
-      const somaCustos = Object.values(custos).reduce((a,b)=>a+b, 0);
-      const totalOut = taxa + valVV + somaCustos;
       
       document.getElementById('semana-vv-status').innerText = valVV > 0 ? `Via Verde: € ${f(valVV)}` : "❌ Via Verde";
       document.getElementById('semana-tabela-corpo').innerHTML = html + `<tr style="font-weight:bold; background:#111;"><td>TOT</td><td>${f(tU)}</td><td>${f(tB)}</td><td style="color:#00bf63">${f(bruto)}</td></tr>`;
-      document.getElementById('semana-val-liquido').innerText = `€ ${f(bruto - totalOut)}`;
+      document.getElementById('semana-val-liquido').innerText = `€ ${f(bruto - (taxa + valVV + tRe))}`;
       document.getElementById('semana-val-km').innerText = tK + " km";
-      document.getElementById('semana-val-total-custos').innerText = `€ ${f(totalOut)}`;
+      document.getElementById('semana-val-total-custos').innerText = `€ ${f(taxa + valVV + tGeral)}`;
 
       let hC = `<div class="resumo-line" style="background:#ff6b6b; color:#000;"><span>Taxa Plataforma (8%)</span><span>€ ${f(taxa)}</span></div>`;
       if(valVV > 0) hC += `<div class="resumo-line" style="background:#4da3ff; color:#000;"><span>Via Verde</span><span>€ ${f(valVV)}</span></div>`;
@@ -307,30 +292,78 @@
 
     function renderMes() {
       document.getElementById('label-mes').innerText = dataRef.toLocaleString('pt-BR', {month:'long', year:'numeric'}).toUpperCase();
-      let ent = 0, sai = { Taxas:0, "Via Verde":0, Combustível:0, Comida:0, Administrativo:0, Outros:0 };
+      let entBruto = 0, totalVV = 0, totalTaxas = 0;
+      let cats = { Combustível: {sim:0, nao:0}, Comida: {sim:0, nao:0}, Administrativo: {sim:0, nao:0}, Outros: {sim:0, nao:0} };
+      let listaOutros = [];
+
       let d = new Date(dataRef.getFullYear(), dataRef.getMonth(), 1);
       while(d.getMonth() === dataRef.getMonth()) {
         let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[]};
         let b = n(s.uber) + n(s.bolt);
-        ent += b; sai.Taxas += b * 0.08;
-        if(s.despesas) s.despesas.forEach(dp => { if(sai[dp.cat] !== undefined) sai[dp.cat] += n(dp.val); else sai.Outros += n(dp.val); });
+        entBruto += b; totalTaxas += b * 0.08;
+        if(s.despesas) {
+          s.despesas.forEach(dp => {
+            let v = n(dp.val);
+            let c = (dp.cat === "Combustível" || dp.cat === "Comida" || dp.cat === "Administrativo") ? dp.cat : "Outros";
+            if(dp.reembolso === 'Sim') cats[c].sim += v; else cats[c].nao += v;
+            if(c === "Outros") listaOutros.push({ dia: d.getDate(), desc: dp.cat, valor: v, re: dp.reembolso });
+          });
+        }
         d.setDate(d.getDate() + 1);
       }
-      for(let k in localStorage) if(k.startsWith("vv_") && k.includes(dataRef.toISOString().slice(0,7))) sai["Via Verde"] += n(localStorage.getItem(k));
-      let h = `<tr><td>Rend. Brutos</td><td style="color:#00bf63">+ € ${f(ent)}</td><td>-</td></tr>`;
-      let totalS = 0;
-      for(let c in sai) { if(sai[c] > 0) { h += `<tr><td>${c}</td><td>-</td><td style="color:#ff6b6b">€ ${f(sai[c])}</td></tr>`; totalS += sai[c]; } }
+      for(let k in localStorage) if(k.startsWith("vv_") && k.includes(dataRef.toISOString().slice(0,7))) totalVV += n(localStorage.getItem(k));
+
+      let h = `<tr><td>Rend. Brutos</td><td style="color:#00bf63">+ € ${f(entBruto)}</td><td>-</td><td>-</td></tr>`;
+      h += `<tr><td>Taxas (8%)</td><td>-</td><td>-</td><td style="color:#ff6b6b">€ ${f(totalTaxas)}</td></tr>`;
+      if(totalVV > 0) h += `<tr><td>Via Verde</td><td>-</td><td>-</td><td style="color:#ff6b6b">€ ${f(totalVV)}</td></tr>`;
+
+      let somaTudo = totalTaxas + totalVV;
+      for(let c in cats) {
+        if(cats[c].sim > 0 || cats[c].nao > 0) {
+          h += `<tr><td>${c}</td><td>-</td><td style="color:#ff6b6b">${cats[c].nao>0?'€ '+f(cats[c].nao):'-'}</td><td style="color:#ff6b6b">${cats[c].sim>0?'€ '+f(cats[c].sim):'-'}</td></tr>`;
+          somaTudo += (cats[c].sim + cats[c].nao);
+        }
+      }
       document.getElementById('mes-tabela-corpo').innerHTML = h;
-      document.getElementById('mes-saldo-final').innerText = `€ ${f(ent - totalS)}`;
+      document.getElementById('mes-saldo-final').innerText = `€ ${f(entBruto - somaTudo)}`;
+
+      const cardO = document.getElementById('card-detalhes-outros');
+      if(listaOutros.length > 0) {
+        cardO.style.display = "block";
+        document.getElementById('tabela-outros-corpo').innerHTML = listaOutros.map(i => 
+          `<tr><td>${i.dia}</td><td>${i.desc}</td><td style="color:#ff6b6b">${i.re==='Não'?'€ '+f(i.valor):'-'}</td><td style="color:#ff6b6b">${i.re==='Sim'?'€ '+f(i.valor):'-'}</td></tr>`
+        ).join('');
+      } else cardO.style.display = "none";
     }
 
+    // FUNÇÕES DE APOIO
+    function abrirModalDespesa() {
+      tempReembolso = 'Não';
+      document.getElementById('modal-titulo').innerText = "Nova Despesa";
+      document.getElementById('modal-body').innerHTML = `
+        <select id="cat-d" class="modal-select" onchange="document.getElementById('out-d').style.display=(this.value=='Outros'?'block':'none')">
+          <option value="Combustível">Combustível</option><option value="Comida">Comida</option><option value="Administrativo">Administrativo</option><option value="Outros">Outro (Digitar)</option>
+        </select>
+        <input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?">
+        <input type="number" id="val-d" class="modal-input" placeholder="0.00">
+        <div class="reembolso-container"><div id="reemb-sim" class="reembolso-btn" onclick="setReembolso('Sim')">Sim</div><div id="reemb-nao" class="reembolso-btn active" onclick="setReembolso('Não')">Não</div></div>`;
+      document.getElementById('modal-geral').style.display = "flex";
+      document.getElementById('btn-confirmar').onclick = () => {
+        let c = document.getElementById('cat-d').value; if(c=='Outros') c=document.getElementById('out-d').value||"Outros";
+        let v = n(document.getElementById('val-d').value); if(v<=0) return;
+        let key = "mytvde_" + dataRef.toISOString().split('T')[0];
+        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
+        s.despesas.push({ cat: c, val: v, reembolso: tempReembolso });
+        localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
+      };
+    }
+
+    function setReembolso(v) { tempReembolso=v; document.getElementById('reemb-sim').classList.toggle('active', v==='Sim'); document.getElementById('reemb-nao').classList.toggle('active', v==='Não'); }
     function salvarDadosDia() {
-      const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      let key = "mytvde_" + dataRef.toISOString().split('T')[0];
       let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
-      s.kmInicio = document.getElementById('km-inicio').value;
-      s.kmFim = document.getElementById('km-fim').value;
-      localStorage.setItem(key, JSON.stringify(s));
-      render();
+      s.kmInicio = document.getElementById('km-inicio').value; s.kmFim = document.getElementById('km-fim').value;
+      localStorage.setItem(key, JSON.stringify(s)); render();
     }
 
     function abrirModalRendimento(p) {
@@ -339,37 +372,17 @@
       document.getElementById('modal-geral').style.display = "flex";
       document.getElementById('btn-confirmar').onclick = () => {
         let v = document.getElementById('val-p').value;
-        const key = "mytvde_" + dataRef.toISOString().split('T')[0];
+        let key = "mytvde_" + dataRef.toISOString().split('T')[0];
         let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
         s[p] = v === "" ? null : v;
-        localStorage.setItem(key, JSON.stringify(s));
-        fecharModal(); render();
-      };
-    }
-
-    function abrirModalDespesa() {
-      document.getElementById('modal-titulo').innerText = "Nova Despesa";
-      document.getElementById('modal-body').innerHTML = `<select id="cat-d" class="modal-select" onchange="document.getElementById('out-d').style.display=(this.value=='Outros'?'block':'none')"><option value="Combustível">Combustível</option><option value="Comida">Comida</option><option value="Administrativo">Administrativo</option><option value="Outros">Outro (Digitar)</option></select><input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?"><input type="number" id="val-d" class="modal-input" placeholder="0.00">`;
-      document.getElementById('modal-geral').style.display = "flex";
-      document.getElementById('btn-confirmar').onclick = () => {
-        let c = document.getElementById('cat-d').value;
-        if(c == 'Outros') c = document.getElementById('out-d').value || "Outros";
-        let v = n(document.getElementById('val-d').value);
-        if(v <= 0) return;
-        const key = "mytvde_" + dataRef.toISOString().split('T')[0];
-        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
-        s.despesas.push({ cat: c, val: v });
-        localStorage.setItem(key, JSON.stringify(s));
-        fecharModal(); render();
+        localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
       };
     }
 
     function deletarDespesa(i) {
-      const key = "mytvde_" + dataRef.toISOString().split('T')[0];
-      let s = JSON.parse(localStorage.getItem(key));
-      s.despesas.splice(i, 1);
-      localStorage.setItem(key, JSON.stringify(s));
-      render();
+      let key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      let s = JSON.parse(localStorage.getItem(key)); s.despesas.splice(i, 1);
+      localStorage.setItem(key, JSON.stringify(s)); render();
     }
 
     function abrirModalVV() {
@@ -378,105 +391,111 @@
       document.getElementById('modal-titulo').innerText = "Via Verde Semanal";
       document.getElementById('modal-body').innerHTML = `<input type="number" id="val-vv" class="modal-input" value="${localStorage.getItem(key)||''}">`;
       document.getElementById('modal-geral').style.display = "flex";
-      document.getElementById('btn-confirmar').onclick = () => {
-        localStorage.setItem(key, document.getElementById('val-vv').value);
-        fecharModal(); render();
-      };
-    }
-
-    function exportarParaExcel() {
-        const mesAlvo = dataRef.getMonth();
-        const anoAlvo = dataRef.getFullYear();
-        let wsData = [];
-        
-        // 1. Encontrar o início: retrocede até a segunda-feira da semana que contém o dia 1
-        let d1 = new Date(anoAlvo, mesAlvo, 1);
-        let currentSegunda = new Date(d1);
-        let offset = d1.getDay() === 0 ? 6 : d1.getDay() - 1;
-        currentSegunda.setDate(d1.getDate() - offset);
-        currentSegunda.setHours(0,0,0,0);
-
-        let semanasRelatorio = [];
-
-        // 2. Loop para verificar até 6 semanas possíveis
-        for(let s=0; s<6; s++) {
-            let tempSeg = new Date(currentSegunda);
-            let diasNoMes = 0;
-            
-            // Conta quantos dias desta semana (Seg a Dom) caem no mês alvo
-            for(let i=0; i<7; i++) {
-                let check = new Date(tempSeg);
-                check.setDate(tempSeg.getDate() + i);
-                if(check.getMonth() === mesAlvo && check.getFullYear() === anoAlvo) {
-                    diasNoMes++;
-                }
-            }
-
-            // REGRA DOS 4 DIAS: Só inclui se tiver 4 ou mais dias no mês alvo
-            if(diasNoMes >= 4) {
-                semanasRelatorio.push(new Date(tempSeg));
-            }
-
-            // Avança para a próxima segunda
-            currentSegunda.setDate(currentSegunda.getDate() + 7);
-            
-            // Se a nova segunda já estiver muito longe no próximo mês, encerra
-            if(currentSegunda.getMonth() > mesAlvo && currentSegunda.getDate() > 7) break;
-            if(currentSegunda.getFullYear() > anoAlvo) break;
-        }
-
-        if (semanasRelatorio.length === 0) {
-            alert("Nenhuma semana completa (min 4 dias) encontrada para este mês.");
-            return;
-        }
-
-        let currentRow = 0;
-        semanasRelatorio.forEach((segunda, idx) => {
-            const domingo = new Date(segunda); domingo.setDate(segunda.getDate() + 6);
-            wsData[currentRow] = [`RELATÓRIO SEMANAL: ${segunda.toLocaleDateString()} a ${domingo.toLocaleDateString()}`];
-            wsData[currentRow + 1] = ["DIA", "UBER", "BOLT", "TOTAL", "", "RESUMO", "VALOR"];
-            
-            let sU=0, sB=0, sC=0;
-            const nomes = ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"];
-            
-            for(let i=0; i<7; i++) {
-                let diaLoop = new Date(segunda); 
-                diaLoop.setDate(segunda.getDate() + i);
-                let key = "mytvde_" + diaLoop.toISOString().split('T')[0];
-                let dados = JSON.parse(localStorage.getItem(key)) || {uber:0, bolt:0, despesas:[]};
-                
-                let vU = n(dados.uber);
-                let vB = n(dados.bolt);
-                sU += vU; sB += vB;
-                if(dados.despesas) dados.despesas.forEach(dp => sC += n(dp.val));
-
-                wsData[currentRow + 2 + i] = [
-                    nomes[i] + " (" + diaLoop.getDate() + "/" + (diaLoop.getMonth()+1) + ")", 
-                    vU, vB, (vU + vB)
-                ];
-            }
-
-            let vvVal = n(localStorage.getItem("vv_" + segunda.toISOString().split('T')[0]));
-            let txVal = (sU + sB) * 0.08;
-
-            wsData[currentRow + 2][5] = "Uber Bruto"; wsData[currentRow + 2][6] = sU;
-            wsData[currentRow + 3][5] = "Bolt Bruto"; wsData[currentRow + 3][6] = sB;
-            wsData[currentRow + 4][5] = "TOTAL BRUTO"; wsData[currentRow + 4][6] = sU + sB;
-            wsData[currentRow + 5][5] = "Taxas (8%)"; wsData[currentRow + 5][6] = txVal;
-            wsData[currentRow + 6][5] = "Via Verde"; wsData[currentRow + 6][6] = vvVal;
-            wsData[currentRow + 7][5] = "Despesas"; wsData[currentRow + 7][6] = sC;
-            wsData[currentRow + 8][5] = "LÍQUIDO FINAL"; wsData[currentRow + 8][6] = (sU+sB) - (txVal + vvVal + sC);
-
-            currentRow += 11; 
-        });
-
-        let wb = XLSX.utils.book_new();
-        let ws = XLSX.utils.aoa_to_sheet(wsData);
-        XLSX.utils.book_append_sheet(wb, ws, "Mensal");
-        XLSX.writeFile(wb, `TVDE_Relatorio_${mesAlvo + 1}_${anoAlvo}.xlsx`);
+      document.getElementById('btn-confirmar').onclick = () => { localStorage.setItem(key, document.getElementById('val-vv').value); fecharModal(); render(); };
     }
 
     function fecharModal() { document.getElementById('modal-geral').style.display = "none"; }
+
+    // ====== FUNÇÃO EXCEL CORRIGIDA (LAYOUT SEMANAL SEPARADO) ======
+    function baixarRelatorioCompleto() {
+        let wb = XLSX.utils.book_new();
+        let rows = [];
+
+        // Identifica as semanas que cobrem o mês selecionado
+        let year = dataRef.getFullYear();
+        let month = dataRef.getMonth();
+        // Inicia na segunda-feira que engloba o dia 1 do mês (ou um pouco antes)
+        let firstDay = new Date(year, month, 1);
+        let startOfWeek = new Date(firstDay);
+        let dayOfWeek = startOfWeek.getDay(); // 0=Sun, 1=Mon...
+        // Ajuste para pegar a segunda-feira da semana
+        let diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek == 0 ? -6 : 1);
+        startOfWeek.setDate(diff);
+
+        // Ultimo dia do mes
+        let lastDay = new Date(year, month + 1, 0);
+
+        // Loop por semanas até cobrir todo o mês
+        while (startOfWeek <= lastDay) {
+            let endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+
+            // 1. Calcular Dados da Semana
+            let tUber=0, tBolt=0, tDespTotal=0, tDespRe=0;
+            let weekData = [];
+            
+            // Loop 7 dias da semana
+            for(let i=0; i<7; i++) {
+                let d = new Date(startOfWeek);
+                d.setDate(startOfWeek.getDate() + i);
+                let key = "mytvde_" + d.toISOString().split('T')[0];
+                let s = JSON.parse(localStorage.getItem(key)) || {uber:0, bolt:0, despesas:[]};
+                
+                let u = n(s.uber); let b = n(s.bolt);
+                tUber += u; tBolt += b;
+                if(s.despesas) s.despesas.forEach(dp => {
+                   let v = n(dp.val); tDespTotal += v;
+                   if(dp.reembolso === 'Sim') tDespRe += v;
+                });
+
+                weekData.push({
+                   dStr: d.toLocaleDateString('pt-PT', {weekday: 'long', day: 'numeric', month:'numeric'}),
+                   u: u, b: b, t: u+b
+                });
+            }
+
+            // Via Verde da semana (busca pela segunda-feira)
+            let vvKey = "vv_" + startOfWeek.toISOString().split('T')[0];
+            let valVV = n(localStorage.getItem(vvKey));
+
+            let tBruto = tUber + tBolt;
+            let tTaxas = tBruto * 0.08;
+            let tLiq = tBruto - (tTaxas + valVV + tDespRe);
+
+            // 2. Montar Bloco Visual (Excel)
+            rows.push([`RELATÓRIO SEMANAL: ${startOfWeek.toLocaleDateString('pt-PT')} a ${endOfWeek.toLocaleDateString('pt-PT')}`]);
+            // Cabeçalho das colunas (com espaço vazio na E)
+            rows.push(["DIA", "UBER", "BOLT", "TOTAL", "", "RESUMO", "VALOR"]);
+
+            // Dados laterais fixos (7 linhas para casar com os 7 dias)
+            let resumoMap = [
+                {k: "Uber Bruto", v: tUber},
+                {k: "Bolt Bruto", v: tBolt},
+                {k: "TOTAL BRUTO", v: tBruto},
+                {k: "Taxas (8%)", v: tTaxas},
+                {k: "Via Verde", v: valVV},
+                {k: "Despesas", v: tDespTotal},
+                {k: "LÍQUIDO FINAL", v: tLiq}
+            ];
+
+            // Preencher as 7 linhas
+            for(let i=0; i<7; i++) {
+                let wd = weekData[i];
+                let rm = resumoMap[i];
+                rows.push([
+                    wd.dStr, 
+                    wd.u, 
+                    wd.b, 
+                    wd.t, 
+                    "",        // Coluna E vazia
+                    rm.k,      // Coluna F (Resumo)
+                    rm.v       // Coluna G (Valor)
+                ]);
+            }
+
+            // Pular linhas antes da próxima semana
+            rows.push([]); 
+            rows.push([]);
+
+            // Avançar para próxima semana
+            startOfWeek.setDate(startOfWeek.getDate() + 7);
+        }
+
+        let ws = XLSX.utils.aoa_to_sheet(rows);
+        XLSX.utils.book_append_sheet(wb, ws, "Relatorio Semanal");
+        XLSX.writeFile(wb, `Relatorio_${dataRef.getMonth()+1}_${dataRef.getFullYear()}.xlsx`);
+    }
+
     render();
   </script>
 </body>
