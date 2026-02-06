@@ -105,8 +105,12 @@
         <div id="label-semana" class="section-date"></div>
         <span class="nav-arrow" id="seta-semana-next" onclick="mudarData(7)">&#10095;</span>
       </div>
+      
       <div class="card">
         <div class="section-title">Resumo Financeiro <span id="semana-vv-status" onclick="abrirModalVV()" style="font-size:10px; text-decoration:underline; cursor:pointer;">Via Verde</span></div>
+        <div class="resumo-line" style="background:#008000; color:#fff;">
+          <span>Líquido Total:</span><span id="semana-saldo-real">€ 0,00</span>
+        </div>
         <div class="resumo-line" style="background:#00bf63; color:#000;" id="semana-liquido-row">
           <span>Líquido a receber:</span><span id="semana-val-liquido">€ 0,00</span>
         </div>
@@ -140,7 +144,7 @@
       <div class="card">
         <div class="section-title">Fechamento do Mês</div>
         <table class="table-container">
-          <thead><tr><th>Categoria</th><th>Entradas</th><th>Saída</th><th>Saída (Re.)</th></tr></thead>
+          <thead><tr><th>Categoria</th><th>Entradas</th><th>Pago</th><th>Despesas</th></tr></thead>
           <tbody id="mes-tabela-corpo"></tbody>
           <tfoot>
             <tr style="background:#111; font-weight:bold; font-size:13px;">
@@ -279,6 +283,10 @@
       
       document.getElementById('semana-vv-status').innerText = valVV > 0 ? `Via Verde: € ${f(valVV)}` : "❌ Via Verde";
       document.getElementById('semana-tabela-corpo').innerHTML = html + `<tr style="font-weight:bold; background:#111;"><td>TOT</td><td>${f(tU)}</td><td>${f(tB)}</td><td style="color:#00bf63">${f(bruto)}</td></tr>`;
+      
+      // CALCULO NOVO - LIQUIDO REAL
+      document.getElementById('semana-saldo-real').innerText = `€ ${f(bruto - (taxa + valVV + tGeral))}`;
+
       document.getElementById('semana-val-liquido').innerText = `€ ${f(bruto - (taxa + valVV + tRe))}`;
       document.getElementById('semana-val-km').innerText = tK + " km";
       document.getElementById('semana-val-total-custos').innerText = `€ ${f(taxa + valVV + tGeral)}`;
@@ -346,7 +354,11 @@
         </select>
         <input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?">
         <input type="number" id="val-d" class="modal-input" placeholder="0.00">
-        <div class="reembolso-container"><div id="reemb-sim" class="reembolso-btn" onclick="setReembolso('Sim')">Sim</div><div id="reemb-nao" class="reembolso-btn active" onclick="setReembolso('Não')">Não</div></div>`;
+        <div class="reembolso-container" style="align-items:center;">
+            <span style="font-size:13px; font-weight:bold; margin-right:10px;">Reembolsável:</span>
+            <div id="reemb-sim" class="reembolso-btn" onclick="setReembolso('Sim')">Sim</div>
+            <div id="reemb-nao" class="reembolso-btn active" onclick="setReembolso('Não')">Não</div>
+        </div>`;
       document.getElementById('modal-geral').style.display = "flex";
       document.getElementById('btn-confirmar').onclick = () => {
         let c = document.getElementById('cat-d').value; if(c=='Outros') c=document.getElementById('out-d').value||"Outros";
@@ -396,68 +408,47 @@
 
     function fecharModal() { document.getElementById('modal-geral').style.display = "none"; }
 
-    // ====== FUNÇÃO EXCEL CORRIGIDA (LAYOUT SEMANAL SEPARADO) ======
+    // ====== FUNÇÃO EXCEL (MANTIDA) ======
     function baixarRelatorioCompleto() {
         let wb = XLSX.utils.book_new();
         let rows = [];
-
-        // Identifica as semanas que cobrem o mês selecionado
         let year = dataRef.getFullYear();
         let month = dataRef.getMonth();
-        // Inicia na segunda-feira que engloba o dia 1 do mês (ou um pouco antes)
         let firstDay = new Date(year, month, 1);
         let startOfWeek = new Date(firstDay);
-        let dayOfWeek = startOfWeek.getDay(); // 0=Sun, 1=Mon...
-        // Ajuste para pegar a segunda-feira da semana
+        let dayOfWeek = startOfWeek.getDay();
         let diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek == 0 ? -6 : 1);
         startOfWeek.setDate(diff);
-
-        // Ultimo dia do mes
         let lastDay = new Date(year, month + 1, 0);
 
-        // Loop por semanas até cobrir todo o mês
         while (startOfWeek <= lastDay) {
             let endOfWeek = new Date(startOfWeek);
             endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-            // 1. Calcular Dados da Semana
             let tUber=0, tBolt=0, tDespTotal=0, tDespRe=0;
             let weekData = [];
-            
-            // Loop 7 dias da semana
             for(let i=0; i<7; i++) {
                 let d = new Date(startOfWeek);
                 d.setDate(startOfWeek.getDate() + i);
                 let key = "mytvde_" + d.toISOString().split('T')[0];
                 let s = JSON.parse(localStorage.getItem(key)) || {uber:0, bolt:0, despesas:[]};
-                
                 let u = n(s.uber); let b = n(s.bolt);
                 tUber += u; tBolt += b;
                 if(s.despesas) s.despesas.forEach(dp => {
                    let v = n(dp.val); tDespTotal += v;
                    if(dp.reembolso === 'Sim') tDespRe += v;
                 });
-
                 weekData.push({
                    dStr: d.toLocaleDateString('pt-PT', {weekday: 'long', day: 'numeric', month:'numeric'}),
                    u: u, b: b, t: u+b
                 });
             }
-
-            // Via Verde da semana (busca pela segunda-feira)
             let vvKey = "vv_" + startOfWeek.toISOString().split('T')[0];
             let valVV = n(localStorage.getItem(vvKey));
-
             let tBruto = tUber + tBolt;
             let tTaxas = tBruto * 0.08;
             let tLiq = tBruto - (tTaxas + valVV + tDespRe);
-
-            // 2. Montar Bloco Visual (Excel)
             rows.push([`RELATÓRIO SEMANAL: ${startOfWeek.toLocaleDateString('pt-PT')} a ${endOfWeek.toLocaleDateString('pt-PT')}`]);
-            // Cabeçalho das colunas (com espaço vazio na E)
             rows.push(["DIA", "UBER", "BOLT", "TOTAL", "", "RESUMO", "VALOR"]);
-
-            // Dados laterais fixos (7 linhas para casar com os 7 dias)
             let resumoMap = [
                 {k: "Uber Bruto", v: tUber},
                 {k: "Bolt Bruto", v: tBolt},
@@ -467,30 +458,14 @@
                 {k: "Despesas", v: tDespTotal},
                 {k: "LÍQUIDO FINAL", v: tLiq}
             ];
-
-            // Preencher as 7 linhas
             for(let i=0; i<7; i++) {
                 let wd = weekData[i];
                 let rm = resumoMap[i];
-                rows.push([
-                    wd.dStr, 
-                    wd.u, 
-                    wd.b, 
-                    wd.t, 
-                    "",        // Coluna E vazia
-                    rm.k,      // Coluna F (Resumo)
-                    rm.v       // Coluna G (Valor)
-                ]);
+                rows.push([wd.dStr, wd.u, wd.b, wd.t, "", rm.k, rm.v]);
             }
-
-            // Pular linhas antes da próxima semana
-            rows.push([]); 
-            rows.push([]);
-
-            // Avançar para próxima semana
+            rows.push([]); rows.push([]);
             startOfWeek.setDate(startOfWeek.getDate() + 7);
         }
-
         let ws = XLSX.utils.aoa_to_sheet(rows);
         XLSX.utils.book_append_sheet(wb, ws, "Relatorio Semanal");
         XLSX.writeFile(wb, `Relatorio_${dataRef.getMonth()+1}_${dataRef.getFullYear()}.xlsx`);
