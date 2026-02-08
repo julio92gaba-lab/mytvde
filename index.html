@@ -8,7 +8,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
   <style>
-    /* BASE */
+    /* CSS BASE BLINDADO */
     * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
     body { font-family: 'Inter', sans-serif; background-color: #000; color: #fff; display: flex; justify-content: center; overflow-x: hidden; }
     .app-container { width: 100%; max-width: 415px; min-height: 100vh; background-color: #393838; position: relative; padding-top: 65px; padding-bottom: 100px; }
@@ -20,27 +20,29 @@
     }
     .header-subtext { text-align: center; color: #afafaf; font-size: 10px; margin-top: 48px; font-weight: 300; letter-spacing: 0.5px; }
 
-    /* TRANSIÇÕES */
-    .tab-content { display: none; padding: 0 12px; animation: slideUpFade 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+    .tab-content { display: none; padding: 0 12px; animation: slideUpFade 0.4s ease forwards; }
     .tab-content.active { display: block; }
     @keyframes slideUpFade { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
 
-    /* CARDS */
     .card { width: 100%; background-color: #000; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); border: 1px solid #222; }
     .section-title { font-size: 18px; font-weight: 600; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
     
     .nav-data-container { display: flex; align-items: center; justify-content: space-between; margin: 10px 0 15px; }
-    .nav-arrow { color: #00bf63; font-weight: bold; font-size: 22px; cursor: pointer; padding: 0 15px; }
-    .nav-arrow.disabled { opacity: 0.2; pointer-events: none; }
+    .nav-arrow { color: #00bf63; font-weight: bold; font-size: 22px; cursor: pointer; padding: 0 15px; transition: 0.3s; }
+    .nav-arrow.disabled { color: #444; cursor: default; }
     .section-date { font-size: 13px; font-weight: bold; text-align: center; flex: 1; }
 
-    /* TABELAS */
+    .table-mes { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .table-mes th, .table-mes td { border: 1px solid #333; padding: 8px 4px; font-size: 11px; }
+    .table-mes .col-cat { width: 56%; text-align: left; padding-left: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .table-mes .col-val { width: 22%; text-align: right; padding-right: 8px; }
+
     .table-container { width: 100%; border-collapse: collapse; font-size: 11px; color: white; margin-top: 5px; }
     .table-container th, .table-container td { border: 1px solid #333; padding: 8px 5px; text-align: center; }
     .table-container th { background: #1a1a1a; color: #00bf63; }
+
     .resumo-line { border-radius: 4px; padding: 10px; display: flex; justify-content: space-between; margin-bottom: 6px; font-size: 13px; font-weight: 500; }
 
-    /* DOCK iOS */
     .dock-container {
       position: fixed; bottom: 15px; left: 50%; transform: translateX(-50%);
       width: 92%; max-width: 380px; height: 65px;
@@ -49,22 +51,20 @@
       display: flex; justify-content: space-around; align-items: center; z-index: 2000;
     }
     .dock-item { display: flex; flex-direction: column; align-items: center; color: #888; cursor: pointer; position: relative; transition: 0.3s; }
-    .dock-item.active { color: #00bf63; transform: translateY(-3px); }
+    .dock-item.active { color: #00bf63; }
     .dock-item span { font-size: 10px; font-weight: 600; margin-top: 4px; }
-    .dock-item.active::after { content: ''; position: absolute; bottom: -8px; width: 4px; height: 4px; background: #00bf63; border-radius: 50%; }
 
-    /* BOTÃO EXCEL */
-    .btn-excel { width:100%; padding:12px; border-radius:8px; border:none; background:#1d6f42; color:white; font-weight:bold; font-size:14px; cursor:pointer; margin-bottom:12px; display:flex; align-items:center; justify-content:center; gap:10px; }
-
-    /* INPUTS / MODAL */
     .km-input { width: 100%; padding: 8px; border-radius: 5px; border: 1px solid #444; background: #111; color: #fff; text-align: center; font-size: 14px; }
     .btn-add { background: #00bf63; color: #fff; border: none; padding: 6px 12px; border-radius: 5px; font-size: 11px; cursor: pointer; font-weight: bold; }
+    
     .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 3000; justify-content: center; align-items: center; }
     .modal-content { background: #222; padding: 20px; border-radius: 15px; width: 85%; max-width: 350px; }
     .modal-input, .modal-select { width: 100%; padding: 12px; margin-bottom: 15px; border-radius: 8px; background: #333; color: #fff; border: 1px solid #444; }
+    
     .reembolso-container { display: flex; gap: 10px; margin-bottom: 15px; }
     .reembolso-btn { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #444; background: #333; color: #fff; cursor: pointer; font-size: 12px; text-align: center; }
     .reembolso-btn.active { background: #00bf63; border-color: #00bf63; font-weight: bold; }
+    .btn-excel { width:100%; padding:12px; border-radius:8px; border:none; background:#1d6f42; color:white; font-weight:bold; font-size:14px; cursor:pointer; margin-top:12px; display:flex; align-items:center; justify-content:center; gap:10px; }
   </style>
 </head>
 <body>
@@ -74,21 +74,39 @@
   <div class="app-container">
     <section id="tab-dia" class="tab-content active">
       <div class="nav-data-container">
-        <span class="nav-arrow" onclick="mudarData(-1)">&#10094;</span>
+        <span class="nav-arrow" id="seta-dia-prev" onclick="mudarData(-1)">&#10094;</span>
         <div id="label-dia" class="section-date"></div>
         <span class="nav-arrow" id="seta-dia-next" onclick="mudarData(1)">&#10095;</span>
       </div>
+      
       <div class="card">
         <div class="section-title">Rendimentos <span id="dia-total-bruto" style="color:#00bf63;">€ 0,00</span></div>
-        <div style="display:flex; gap:10px;">
+        <div style="display:flex; gap:10px; margin-bottom: 15px;">
           <div id="uber-slot" style="flex:1"></div>
           <div id="bolt-slot" style="flex:1"></div>
         </div>
+        
+        <div style="text-align: center; border-top: 1px solid #222; padding-top: 12px;">
+            <p style="font-size: 14px; font-weight: 600;">Ganhos extras?</p>
+            <p style="font-size: 11px; color: #afafaf; margin-bottom: 10px; padding: 0 5px;">Valores limpos sem descontos pela plataforma.</p>
+            
+            <div id="extra-botoes-sim-nao" style="display: flex; gap: 10px; width: 60%; margin: 0 auto;">
+                <button class="reembolso-btn" onclick="abrirModalExtra()">Sim</button>
+                <button class="reembolso-btn active">Não</button>
+            </div>
+            
+            <div id="extra-container-info" style="display:none; align-items: center; justify-content: center; gap: 12px; margin-top: 5px;">
+                <span id="extra-info-texto" style="color:#00bf63; font-size: 13px; font-weight: 600;"></span>
+                <span style="color:#ff6b6b; font-weight: bold; cursor: pointer; font-size: 20px;" onclick="removerExtra()">X</span>
+            </div>
+        </div>
       </div>
+
       <div class="card">
         <div class="section-title">Despesas <button class="btn-add" onclick="abrirModalDespesa()">+ Adicionar</button></div>
         <div id="lista-despesas-dia"></div>
       </div>
+
       <div class="card">
         <div class="section-title">Quilometragem</div>
         <div style="display:flex; gap:10px; align-items:center;">
@@ -101,30 +119,40 @@
 
     <section id="tab-semana" class="tab-content">
       <div class="nav-data-container">
-        <span class="nav-arrow" onclick="mudarData(-7)">&#10094;</span>
+        <span class="nav-arrow" id="seta-semana-prev" onclick="mudarData(-7)">&#10094;</span>
         <div id="label-semana" class="section-date"></div>
         <span class="nav-arrow" id="seta-semana-next" onclick="mudarData(7)">&#10095;</span>
       </div>
       
       <div class="card">
-        <div class="section-title">Resumo Financeiro <span id="semana-vv-status" onclick="abrirModalVV()" style="font-size:10px; text-decoration:underline; cursor:pointer;">Via Verde</span></div>
+        <div class="section-title">Resumo Financeiro <span id="semana-vv-status-container" onclick="abrirModalVV()" style="cursor:pointer; font-size: 12px; text-decoration: underline;"></span></div>
         <div class="resumo-line" style="background:#008000; color:#fff;">
-          <span>Líquido Total:</span><span id="semana-saldo-real">€ 0,00</span>
+          <span>Valor a receber:</span><span id="semana-val-liquido">€ 0,00</span>
         </div>
-        <div class="resumo-line" style="background:#00bf63; color:#000;" id="semana-liquido-row">
-          <span>Líquido a receber:</span><span id="semana-val-liquido">€ 0,00</span>
+        <div class="resumo-line" style="background:#00bf63; color:#000;">
+          <span>Valor líquido da semana:</span><span id="semana-saldo-real">€ 0,00</span>
         </div>
         <div class="resumo-line" style="background:#333;">
           <span>Distância Total:</span><span id="semana-val-km">0 km</span>
         </div>
       </div>
+
       <div class="card">
         <div class="section-title" style="font-size:14px;">Detalhamento de Ganhos</div>
         <table class="table-container">
-          <thead><tr><th>Dia</th><th>Uber</th><th>Bolt</th><th>Total</th></tr></thead>
+          <thead><tr><th style="width:35px;">Dia</th><th>Uber</th><th>Bolt</th><th style="color:#ff6b6b">Desp.</th><th>Total</th></tr></thead>
           <tbody id="semana-tabela-corpo"></tbody>
         </table>
+        
+        <div id="container-extras-semana" style="display: none; margin-top: 20px;">
+            <div class="section-title" style="font-size:14px;">Ganhos Extras Detalhados</div>
+            <table class="table-container">
+                <thead><tr><th style="width: 45px;">Data</th><th style="width: 75px;">Valor</th><th>Descrição</th></tr></thead>
+                <tbody id="semana-tabela-extras"></tbody>
+            </table>
+        </div>
       </div>
+
       <div class="card">
         <div class="section-title" style="font-size:14px;">Custos Detalhados</div>
         <div id="semana-lista-custos"></div>
@@ -136,31 +164,30 @@
 
     <section id="tab-mes" class="tab-content">
       <div class="nav-data-container">
-        <span class="nav-arrow" onclick="mudarMes(-1)">&#10094;</span>
+        <span class="nav-arrow" id="seta-mes-prev" onclick="mudarMes(-1)">&#10094;</span>
         <div id="label-mes" class="section-date"></div>
         <span class="nav-arrow" id="seta-mes-next" onclick="mudarMes(1)">&#10095;</span>
       </div>
-      <button class="btn-excel" onclick="baixarRelatorioCompleto()">📥 BAIXAR RELATÓRIO EXCEL</button>
       <div class="card">
         <div class="section-title">Fechamento do Mês</div>
-        <table class="table-container">
-          <thead><tr><th>Categoria</th><th>Entradas</th><th>Pago</th><th>Despesas</th></tr></thead>
+        <table class="table-mes">
+          <thead>
+            <tr style="background: #1a1a1a; color: #00bf63;">
+              <th class="col-cat">Categoria</th>
+              <th class="col-val">Entradas</th>
+              <th class="col-val">Despesas</th>
+            </tr>
+          </thead>
           <tbody id="mes-tabela-corpo"></tbody>
           <tfoot>
             <tr style="background:#111; font-weight:bold; font-size:13px;">
-              <td>SALDO FINAL</td>
-              <td colspan="3" id="mes-saldo-final" style="color:#00bf63;">€ 0,00</td>
+              <td class="col-cat">SALDO FINAL</td>
+              <td colspan="2" id="mes-saldo-final" style="text-align: center; padding: 10px 0;">€ 0,00</td>
             </tr>
           </tfoot>
         </table>
       </div>
-      <div id="card-detalhes-outros" class="card" style="display:none;">
-        <div class="section-title">Outros</div>
-        <table class="table-container">
-          <thead><tr><th>Dia</th><th>Descrição</th><th>Saída</th><th>Saída (Re.)</th></tr></thead>
-          <tbody id="tabela-outros-corpo"></tbody>
-        </table>
-      </div>
+      <button class="btn-excel" onclick="baixarRelatorioCompleto()">📥 BAIXAR RELATÓRIO EXCEL</button>
     </section>
 
     <nav class="dock-container">
@@ -183,7 +210,7 @@
     <div class="modal-content">
       <h3 id="modal-titulo" style="margin-bottom:15px; font-size:16px; color:#00bf63;"></h3>
       <div id="modal-body"></div>
-      <div style="display:flex; justify-content:flex-end; gap:10px;">
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top: 15px;">
         <button onclick="fecharModal()" style="padding:10px; background:#444; border:none; border-radius:5px; color:#fff;">Cancelar</button>
         <button id="btn-confirmar" style="padding:10px; background:#00bf63; border:none; border-radius:5px; color:#fff;">Confirmar</button>
       </div>
@@ -205,8 +232,7 @@
       const diff = d.getDate() - (day === 0 ? 6 : day - 1);
       const segunda = new Date(d.setDate(diff));
       segunda.setHours(0,0,0,0);
-      const domingo = new Date(segunda); 
-      domingo.setDate(segunda.getDate() + 6);
+      const domingo = new Date(segunda); domingo.setDate(segunda.getDate() + 6);
       return { segunda, domingo };
     }
 
@@ -219,29 +245,57 @@
       render();
     }
 
-    function mudarData(d) { dataRef.setDate(dataRef.getDate() + d); render(); }
-    function mudarMes(m) { dataRef.setMonth(dataRef.getMonth() + m); render(); }
+    function mudarData(d) { 
+        let novaData = new Date(dataRef); novaData.setDate(novaData.getDate() + d);
+        if (novaData > HOJE) return;
+        dataRef = novaData; render(); 
+    }
+    
+    function mudarMes(m) { 
+        let novaData = new Date(dataRef); novaData.setMonth(novaData.getMonth() + m);
+        if (novaData.getFullYear() > HOJE.getFullYear() || (novaData.getFullYear() === HOJE.getFullYear() && novaData.getMonth() > HOJE.getMonth())) return;
+        dataRef = novaData; render(); 
+    }
 
     function render() {
+      atualizarSetas();
       if(abaAtual === 'dia') renderDia();
       if(abaAtual === 'semana') renderSemana();
       if(abaAtual === 'mes') renderMes();
     }
 
+    function atualizarSetas() {
+        const sD = document.getElementById('seta-dia-next');
+        const sS = document.getElementById('seta-semana-next');
+        const sM = document.getElementById('seta-mes-next');
+        if (dataRef >= HOJE) sD.classList.add('disabled'); else sD.classList.remove('disabled');
+        const { domingo } = getPeriodoSemana(dataRef);
+        if (domingo >= HOJE) sS.classList.add('disabled'); else sS.classList.remove('disabled');
+        if (dataRef.getMonth() >= HOJE.getMonth() && dataRef.getFullYear() >= HOJE.getFullYear()) sM.classList.add('disabled'); else sM.classList.remove('disabled');
+    }
+
     function renderDia() {
       const key = "mytvde_" + dataRef.toISOString().split('T')[0];
-      const s = JSON.parse(localStorage.getItem(key)) || { uber: null, bolt: null, despesas: [], kmInicio: "", kmFim: "" };
+      const s = JSON.parse(localStorage.getItem(key)) || { uber: null, bolt: null, despesas: [], kmInicio: "", kmFim: "", extraVal: 0, extraDesc: "" };
       document.getElementById('label-dia').innerText = dataRef.toLocaleDateString('pt-BR', {day:'numeric', month:'long', year:'numeric'});
       document.getElementById('dia-total-bruto').innerText = `€ ${f(n(s.uber) + n(s.bolt))}`;
       document.getElementById('uber-slot').innerHTML = renderBtnPlat('uber', s.uber);
       document.getElementById('bolt-slot').innerHTML = renderBtnPlat('bolt', s.bolt);
+      
+      const extraVal = n(s.extraVal);
+      const btsExtra = document.getElementById('extra-botoes-sim-nao');
+      const infoExtra = document.getElementById('extra-container-info');
+      if(extraVal > 0) {
+          btsExtra.style.display = 'none'; infoExtra.style.display = 'flex';
+          document.getElementById('extra-info-texto').innerText = `Extra: € ${f(extraVal)} (${s.extraDesc})`;
+      } else { btsExtra.style.display = 'flex'; infoExtra.style.display = 'none'; }
+
       const lista = document.getElementById('lista-despesas-dia');
       lista.innerHTML = (s.despesas && s.despesas.length) ? "" : "<p style='color:#666; font-size:11px;'>Sem despesas.</p>";
       if(s.despesas) {
         s.despesas.forEach((d, i) => {
-          const icone = d.reembolso === 'Sim' ? '↩ ' : '';
           lista.innerHTML += `<div class="resumo-line" style="background:#222; margin-bottom:4px; padding:6px 10px;">
-            <span style="font-size:11px;">${icone}${d.cat}: € ${f(d.val)}</span>
+            <span style="font-size:11px;">${d.reembolso==='Sim'?'↩ ':''}${d.cat}: € ${f(d.val)}</span>
             <span style="color:#ff6b6b; cursor:pointer;" onclick="deletarDespesa(${i})">X</span>
           </div>`;
         });
@@ -259,123 +313,112 @@
     function renderSemana() {
       const { segunda, domingo } = getPeriodoSemana(dataRef);
       document.getElementById('label-semana').innerText = `${segunda.getDate()} ${segunda.toLocaleString('pt-BR',{month:'short'})} - ${domingo.getDate()} ${domingo.toLocaleString('pt-BR',{month:'short'})}`;
-      let tU = 0, tB = 0, tK = 0, tRe = 0, tGeral = 0;
-      let custos = { "Combustível": 0, "Comida": 0, "Administrativo": 0, "Outros": 0 };
-      let html = "";
+      let tU = 0, tB = 0, tK = 0, tRe = 0, tExtra = 0, tDespCol = 0;
+      let custos = { "Combustível": 0, "Comida": 0, "Outros": 0 };
+      let html = ""; let htmlEx = "";
 
       for(let i=0; i<7; i++) {
         let d = new Date(segunda); d.setDate(segunda.getDate() + i);
-        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[]};
-        tU += n(s.uber); tB += n(s.bolt);
-        tK += Math.max(0, n(s.kmFim) - n(s.kmInicio));
-        if(s.despesas) {
-          s.despesas.forEach(dp => {
-            let v = n(dp.val);
-            if(custos[dp.cat] !== undefined) custos[dp.cat] += v; else custos["Outros"] += v;
-            tGeral += v; if(dp.reembolso === 'Sim') tRe += v;
-          });
+        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[], extraVal: 0, kmInicio:0, kmFim:0};
+        let dDesp = 0;
+        tU += n(s.uber); tB += n(s.bolt); tK += Math.max(0, n(s.kmFim)-n(s.kmInicio));
+        if(s.despesas) s.despesas.forEach(dp => { 
+            let v = n(dp.val); dDesp += v; if(dp.reembolso==='Sim') tRe += v;
+            if(custos[dp.cat]!==undefined) custos[dp.cat]+=v; else custos["Outros"]+=v;
+        });
+        tDespCol += dDesp;
+        if(n(s.extraVal) > 0) {
+            tExtra += n(s.extraVal);
+            htmlEx += `<tr><td>${d.getDate()}</td><td>€ ${f(s.extraVal)}</td><td style="text-align:left; padding-left:10px;">${s.extraDesc}</td></tr>`;
         }
-        html += `<tr><td>${d.getDate()}</td><td>${f(n(s.uber))}</td><td>${f(n(s.bolt))}</td><td>${f(n(s.uber)+n(s.bolt))}</td></tr>`;
+        // MODIFICADO: Agora o total do dia inclui o ExtraVal no detalhamento
+        let diaTotalComExtra = n(s.uber) + n(s.bolt) + n(s.extraVal);
+        html += `<tr><td>${d.getDate()}</td><td>${f(n(s.uber))}</td><td>${f(n(s.bolt))}</td><td style="color:#ff6b6b">${f(dDesp)}</td><td style="font-weight:bold;">${f(diaTotalComExtra)}</td></tr>`;
       }
-      const valVV = n(localStorage.getItem("vv_" + segunda.toISOString().split('T')[0]));
-      const bruto = tU + tB;
-      const taxa = bruto * 0.08;
       
-      document.getElementById('semana-vv-status').innerText = valVV > 0 ? `Via Verde: € ${f(valVV)}` : "❌ Via Verde";
-      document.getElementById('semana-tabela-corpo').innerHTML = html + `<tr style="font-weight:bold; background:#111;"><td>TOT</td><td>${f(tU)}</td><td>${f(tB)}</td><td style="color:#00bf63">${f(bruto)}</td></tr>`;
-      
-      // CALCULO NOVO - LIQUIDO REAL
-      document.getElementById('semana-saldo-real').innerText = `€ ${f(bruto - (taxa + valVV + tGeral))}`;
+      const vvVal = localStorage.getItem("vv_" + segunda.toISOString().split('T')[0]);
+      const statusCont = document.getElementById('semana-vv-status-container');
+      if(vvVal && n(vvVal) > 0) statusCont.innerHTML = `Via Verde <span style="color:#00bf63; font-size:14px;">✅</span>`;
+      else statusCont.innerHTML = `Via Verde <span style="color:#ff6b6b; font-size:14px;">❌</span>`;
 
+      const valVV = n(vvVal);
+      const bruto = tU + tB; const taxa = bruto * 0.08;
+      
+      document.getElementById('semana-tabela-corpo').innerHTML = html + `<tr style="font-weight:bold; background:#111;"><td>TOT</td><td>${f(tU)}</td><td>${f(tB)}</td><td style="color:#ff6b6b">${f(tDespCol)}</td><td style="color:#00bf63">${f(bruto + tExtra)}</td></tr>`;
+      document.getElementById('semana-saldo-real').innerText = `€ ${f(bruto + tExtra - (taxa + valVV + tDespCol))}`;
       document.getElementById('semana-val-liquido').innerText = `€ ${f(bruto - (taxa + valVV + tRe))}`;
       document.getElementById('semana-val-km').innerText = tK + " km";
-      document.getElementById('semana-val-total-custos').innerText = `€ ${f(taxa + valVV + tGeral)}`;
+
+      if(tExtra > 0) {
+          document.getElementById('container-extras-semana').style.display = 'block';
+          document.getElementById('semana-tabela-extras').innerHTML = htmlEx;
+      } else { document.getElementById('container-extras-semana').style.display = 'none'; }
 
       let hC = `<div class="resumo-line" style="background:#ff6b6b; color:#000;"><span>Taxa Plataforma (8%)</span><span>€ ${f(taxa)}</span></div>`;
       if(valVV > 0) hC += `<div class="resumo-line" style="background:#4da3ff; color:#000;"><span>Via Verde</span><span>€ ${f(valVV)}</span></div>`;
-      const cores = { "Combustível": "#ffd93d", "Comida": "#ff8000", "Administrativo": "#a288e3", "Outros": "#888" };
+      const cores = { "Combustível": "#ffd93d", "Comida": "#ff8000", "Outros": "#888" };
       for(let c in custos) if(custos[c] > 0) hC += `<div class="resumo-line" style="background:${cores[c]}; color:#000;"><span>${c}</span><span>€ ${f(custos[c])}</span></div>`;
       document.getElementById('semana-lista-custos').innerHTML = hC;
+      document.getElementById('semana-val-total-custos').innerText = `€ ${f(taxa + valVV + tDespCol)}`;
     }
 
     function renderMes() {
       document.getElementById('label-mes').innerText = dataRef.toLocaleString('pt-BR', {month:'long', year:'numeric'}).toUpperCase();
-      let entBruto = 0, totalVV = 0, totalTaxas = 0;
-      let cats = { Combustível: {sim:0, nao:0}, Comida: {sim:0, nao:0}, Administrativo: {sim:0, nao:0}, Outros: {sim:0, nao:0} };
-      let listaOutros = [];
+      let entBruto = 0, totalVV = 0, totalTaxas = 0, entExtra = 0;
+      let agrupamento = {};
 
       let d = new Date(dataRef.getFullYear(), dataRef.getMonth(), 1);
       while(d.getMonth() === dataRef.getMonth()) {
-        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[]};
-        let b = n(s.uber) + n(s.bolt);
-        entBruto += b; totalTaxas += b * 0.08;
-        if(s.despesas) {
-          s.despesas.forEach(dp => {
-            let v = n(dp.val);
-            let c = (dp.cat === "Combustível" || dp.cat === "Comida" || dp.cat === "Administrativo") ? dp.cat : "Outros";
-            if(dp.reembolso === 'Sim') cats[c].sim += v; else cats[c].nao += v;
-            if(c === "Outros") listaOutros.push({ dia: d.getDate(), desc: dp.cat, valor: v, re: dp.reembolso });
-          });
-        }
+        let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[], extraVal: 0};
+        let b = n(s.uber) + n(s.bolt); entBruto += b; totalTaxas += b * 0.08; entExtra += n(s.extraVal);
+        if(s.despesas) s.despesas.forEach(dp => {
+            let descFinal = dp.cat + (dp.reembolso === 'Sim' ? ' (Reembolsável)' : '');
+            if(!agrupamento[descFinal]) agrupamento[descFinal] = { val: 0 };
+            agrupamento[descFinal].val += n(dp.val);
+        });
         d.setDate(d.getDate() + 1);
       }
       for(let k in localStorage) if(k.startsWith("vv_") && k.includes(dataRef.toISOString().slice(0,7))) totalVV += n(localStorage.getItem(k));
 
-      let h = `<tr><td>Rend. Brutos</td><td style="color:#00bf63">+ € ${f(entBruto)}</td><td>-</td><td>-</td></tr>`;
-      h += `<tr><td>Taxas (8%)</td><td>-</td><td>-</td><td style="color:#ff6b6b">€ ${f(totalTaxas)}</td></tr>`;
-      if(totalVV > 0) h += `<tr><td>Via Verde</td><td>-</td><td>-</td><td style="color:#ff6b6b">€ ${f(totalVV)}</td></tr>`;
+      let h = `<tr><td class="col-cat">Rendimentos Brutos</td><td class="col-val" style="color:#00bf63">€ ${f(entBruto)}</td><td class="col-val">-</td></tr>`;
+      if(entExtra > 0) h += `<tr><td class="col-cat">Ganhos Extras</td><td class="col-val" style="color:#00bf63">€ ${f(entExtra)}</td><td class="col-val">-</td></tr>`;
+      h += `<tr><td class="col-cat">Taxas (8%)</td><td class="col-val">-</td><td class="col-val" style="color:#ff6b6b">€ ${f(totalTaxas)}</td></tr>`;
+      if(totalVV > 0) h += `<tr><td class="col-cat">Via Verde</td><td class="col-val">-</td><td class="col-val" style="color:#ff6b6b">€ ${f(totalVV)}</td></tr>`;
 
-      let somaTudo = totalTaxas + totalVV;
-      for(let c in cats) {
-        if(cats[c].sim > 0 || cats[c].nao > 0) {
-          h += `<tr><td>${c}</td><td>-</td><td style="color:#ff6b6b">${cats[c].nao>0?'€ '+f(cats[c].nao):'-'}</td><td style="color:#ff6b6b">${cats[c].sim>0?'€ '+f(cats[c].sim):'-'}</td></tr>`;
-          somaTudo += (cats[c].sim + cats[c].nao);
-        }
-      }
+      let somaD = totalTaxas + totalVV;
+      Object.keys(agrupamento).sort().forEach(chave => {
+          h += `<tr><td class="col-cat">${chave}</td><td class="col-val">-</td><td class="col-val" style="color:#ff6b6b">€ ${f(agrupamento[chave].val)}</td></tr>`;
+          somaD += agrupamento[chave].val;
+      });
       document.getElementById('mes-tabela-corpo').innerHTML = h;
-      document.getElementById('mes-saldo-final').innerText = `€ ${f(entBruto - somaTudo)}`;
-
-      const cardO = document.getElementById('card-detalhes-outros');
-      if(listaOutros.length > 0) {
-        cardO.style.display = "block";
-        document.getElementById('tabela-outros-corpo').innerHTML = listaOutros.map(i => 
-          `<tr><td>${i.dia}</td><td>${i.desc}</td><td style="color:#ff6b6b">${i.re==='Não'?'€ '+f(i.valor):'-'}</td><td style="color:#ff6b6b">${i.re==='Sim'?'€ '+f(i.valor):'-'}</td></tr>`
-        ).join('');
-      } else cardO.style.display = "none";
+      
+      const saldoFinal = entBruto + entExtra - somaD;
+      const elSaldo = document.getElementById('mes-saldo-final');
+      elSaldo.innerText = `€ ${f(saldoFinal)}`;
+      elSaldo.style.color = saldoFinal >= 0 ? "#00bf63" : "#ff6b6b";
     }
 
-    // FUNÇÕES DE APOIO
-    function abrirModalDespesa() {
-      tempReembolso = 'Não';
-      document.getElementById('modal-titulo').innerText = "Nova Despesa";
-      document.getElementById('modal-body').innerHTML = `
-        <select id="cat-d" class="modal-select" onchange="document.getElementById('out-d').style.display=(this.value=='Outros'?'block':'none')">
-          <option value="Combustível">Combustível</option><option value="Comida">Comida</option><option value="Administrativo">Administrativo</option><option value="Outros">Outro (Digitar)</option>
-        </select>
-        <input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?">
-        <input type="number" id="val-d" class="modal-input" placeholder="0.00">
-        <div class="reembolso-container" style="align-items:center;">
-            <span style="font-size:13px; font-weight:bold; margin-right:10px;">Reembolsável:</span>
-            <div id="reemb-sim" class="reembolso-btn" onclick="setReembolso('Sim')">Sim</div>
-            <div id="reemb-nao" class="reembolso-btn active" onclick="setReembolso('Não')">Não</div>
-        </div>`;
-      document.getElementById('modal-geral').style.display = "flex";
-      document.getElementById('btn-confirmar').onclick = () => {
-        let c = document.getElementById('cat-d').value; if(c=='Outros') c=document.getElementById('out-d').value||"Outros";
-        let v = n(document.getElementById('val-d').value); if(v<=0) return;
+    function abrirModalExtra() {
+        document.getElementById('modal-titulo').innerText = "Ganhos Extras";
+        document.getElementById('modal-body').innerHTML = `
+            <p style="font-size:11px; color:#afafaf; margin-bottom:12px; text-align:center;">Este é um valor limpo, não sofre descontos da empresa.</p>
+            <input type="text" id="extra-desc" class="modal-input" placeholder="O que foi? (ex: Gorjeta)" maxlength="35">
+            <input type="number" id="extra-val" class="modal-input" placeholder="Valor €">`;
+        document.getElementById('modal-geral').style.display = "flex";
+        document.getElementById('btn-confirmar').onclick = () => {
+            let v = n(document.getElementById('extra-val').value); let d = document.getElementById('extra-desc').value || "Extra";
+            if(v <= 0) return;
+            let key = "mytvde_" + dataRef.toISOString().split('T')[0];
+            let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[] };
+            s.extraVal = v; s.extraDesc = d;
+            localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
+        };
+    }
+
+    function removerExtra() {
         let key = "mytvde_" + dataRef.toISOString().split('T')[0];
-        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
-        s.despesas.push({ cat: c, val: v, reembolso: tempReembolso });
-        localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
-      };
-    }
-
-    function setReembolso(v) { tempReembolso=v; document.getElementById('reemb-sim').classList.toggle('active', v==='Sim'); document.getElementById('reemb-nao').classList.toggle('active', v==='Não'); }
-    function salvarDadosDia() {
-      let key = "mytvde_" + dataRef.toISOString().split('T')[0];
-      let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
-      s.kmInicio = document.getElementById('km-inicio').value; s.kmFim = document.getElementById('km-fim').value;
-      localStorage.setItem(key, JSON.stringify(s)); render();
+        let s = JSON.parse(localStorage.getItem(key));
+        if(s) { s.extraVal = 0; s.extraDesc = ""; localStorage.setItem(key, JSON.stringify(s)); render(); }
     }
 
     function abrirModalRendimento(p) {
@@ -385,30 +428,61 @@
       document.getElementById('btn-confirmar').onclick = () => {
         let v = document.getElementById('val-p').value;
         let key = "mytvde_" + dataRef.toISOString().split('T')[0];
-        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[], kmInicio:"", kmFim:"" };
+        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[] };
         s[p] = v === "" ? null : v;
         localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
       };
     }
 
+    function abrirModalDespesa() {
+      tempReembolso = 'Não';
+      document.getElementById('modal-titulo').innerText = "Nova Despesa";
+      document.getElementById('modal-body').innerHTML = `
+        <select id="cat-d" class="modal-select" onchange="document.getElementById('out-d').style.display=(this.value=='Outros'?'block':'none')">
+          <option value="" disabled selected>Selecione...</option>
+          <option value="Combustível">Combustível</option><option value="Comida">Comida</option><option value="Outros">Outro (Digitar)</option>
+        </select>
+        <input type="text" id="out-d" class="modal-input" style="display:none;" placeholder="Qual despesa?" maxlength="35">
+        <input type="number" id="val-d" class="modal-input" placeholder="0.00">
+        <p style="text-align:center; font-size:12px; margin-bottom:10px;">Pago pela plataforma?</p>
+        <div class="reembolso-container">
+            <div id="reemb-sim" class="reembolso-btn" onclick="setReembolso('Sim')">Sim</div>
+            <div id="reemb-nao" class="reembolso-btn active" onclick="setReembolso('Não')">Não</div>
+        </div>`;
+      document.getElementById('modal-geral').style.display = "flex";
+      document.getElementById('btn-confirmar').onclick = () => {
+        let c = document.getElementById('cat-d').value; if(c=='Outros') c=document.getElementById('out-d').value||"Outros";
+        if(!c) return;
+        let v = n(document.getElementById('val-d').value); if(v<=0) return;
+        let key = "mytvde_" + dataRef.toISOString().split('T')[0];
+        let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[] };
+        s.despesas.push({ cat: c, val: v, reembolso: tempReembolso });
+        localStorage.setItem(key, JSON.stringify(s)); fecharModal(); render();
+      };
+    }
+
+    function setReembolso(v) { tempReembolso=v; document.getElementById('reemb-sim').classList.toggle('active', v==='Sim'); document.getElementById('reemb-nao').classList.toggle('active', v==='Não'); }
+    function fecharModal() { document.getElementById('modal-geral').style.display = "none"; }
+    function salvarDadosDia() {
+      let key = "mytvde_" + dataRef.toISOString().split('T')[0];
+      let s = JSON.parse(localStorage.getItem(key)) || { uber:null, bolt:null, despesas:[] };
+      s.kmInicio = document.getElementById('km-inicio').value; s.kmFim = document.getElementById('km-fim').value;
+      localStorage.setItem(key, JSON.stringify(s)); render();
+    }
     function deletarDespesa(i) {
       let key = "mytvde_" + dataRef.toISOString().split('T')[0];
       let s = JSON.parse(localStorage.getItem(key)); s.despesas.splice(i, 1);
       localStorage.setItem(key, JSON.stringify(s)); render();
     }
-
     function abrirModalVV() {
       const { segunda } = getPeriodoSemana(dataRef);
       const key = "vv_" + segunda.toISOString().split('T')[0];
-      document.getElementById('modal-titulo').innerText = "Via Verde Semanal";
-      document.getElementById('modal-body').innerHTML = `<input type="number" id="val-vv" class="modal-input" value="${localStorage.getItem(key)||''}">`;
+      document.getElementById('modal-titulo').innerText = "Via Verde (Semanal)";
+      document.getElementById('modal-body').innerHTML = `<p style="font-size:11px; color:#afafaf; margin-bottom:12px; text-align:center;">Caso sua Via Verde não seja descontada pela empresa, adicione-a em "Dia > Despesas".</p><input type="number" id="val-vv" class="modal-input" value="${localStorage.getItem(key)||''}">`;
       document.getElementById('modal-geral').style.display = "flex";
       document.getElementById('btn-confirmar').onclick = () => { localStorage.setItem(key, document.getElementById('val-vv').value); fecharModal(); render(); };
     }
 
-    function fecharModal() { document.getElementById('modal-geral').style.display = "none"; }
-
-    // ====== FUNÇÃO EXCEL (MANTIDA) ======
     function baixarRelatorioCompleto() {
         let wb = XLSX.utils.book_new();
         let rows = [];
@@ -417,58 +491,53 @@
         let firstDay = new Date(year, month, 1);
         let startOfWeek = new Date(firstDay);
         let dayOfWeek = startOfWeek.getDay();
-        let diff = startOfWeek.getDate() - dayOfWeek + (dayOfWeek == 0 ? -6 : 1);
+        let diff = startOfWeek.getDate() - (dayOfWeek == 0 ? 6 : dayOfWeek - 1);
         startOfWeek.setDate(diff);
         let lastDay = new Date(year, month + 1, 0);
 
         while (startOfWeek <= lastDay) {
-            let endOfWeek = new Date(startOfWeek);
-            endOfWeek.setDate(startOfWeek.getDate() + 6);
-            let tUber=0, tBolt=0, tDespTotal=0, tDespRe=0;
+            let endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
+            let tU=0, tB=0, tD=0, tR=0, tEx=0;
             let weekData = [];
+            let weekExpenses = []; // Para acumular despesas da semana
+
             for(let i=0; i<7; i++) {
-                let d = new Date(startOfWeek);
-                d.setDate(startOfWeek.getDate() + i);
-                let key = "mytvde_" + d.toISOString().split('T')[0];
-                let s = JSON.parse(localStorage.getItem(key)) || {uber:0, bolt:0, despesas:[]};
-                let u = n(s.uber); let b = n(s.bolt);
-                tUber += u; tBolt += b;
-                if(s.despesas) s.despesas.forEach(dp => {
-                   let v = n(dp.val); tDespTotal += v;
-                   if(dp.reembolso === 'Sim') tDespRe += v;
+                let d = new Date(startOfWeek); d.setDate(startOfWeek.getDate() + i);
+                let s = JSON.parse(localStorage.getItem("mytvde_" + d.toISOString().split('T')[0])) || {uber:0, bolt:0, despesas:[], extraVal: 0};
+                tU += n(s.uber); tB += n(s.bolt); tEx += n(s.extraVal);
+                if(s.despesas) s.despesas.forEach(dp => { 
+                    let valD = n(dp.val);
+                    tD += valD; 
+                    if(dp.reembolso==='Sim') tR += valD; 
+                    weekExpenses.push(`${dp.cat}: €${f(valD)}`);
                 });
-                weekData.push({
-                   dStr: d.toLocaleDateString('pt-PT', {weekday: 'long', day: 'numeric', month:'numeric'}),
-                   u: u, b: b, t: u+b
-                });
+                weekData.push({ date: d.toLocaleDateString('pt-PT'), uber: n(s.uber), bolt: n(s.bolt), extra: n(s.extraVal) });
             }
-            let vvKey = "vv_" + startOfWeek.toISOString().split('T')[0];
-            let valVV = n(localStorage.getItem(vvKey));
-            let tBruto = tUber + tBolt;
-            let tTaxas = tBruto * 0.08;
-            let tLiq = tBruto - (tTaxas + valVV + tDespRe);
-            rows.push([`RELATÓRIO SEMANAL: ${startOfWeek.toLocaleDateString('pt-PT')} a ${endOfWeek.toLocaleDateString('pt-PT')}`]);
-            rows.push(["DIA", "UBER", "BOLT", "TOTAL", "", "RESUMO", "VALOR"]);
-            let resumoMap = [
-                {k: "Uber Bruto", v: tUber},
-                {k: "Bolt Bruto", v: tBolt},
-                {k: "TOTAL BRUTO", v: tBruto},
-                {k: "Taxas (8%)", v: tTaxas},
-                {k: "Via Verde", v: valVV},
-                {k: "Despesas", v: tDespTotal},
-                {k: "LÍQUIDO FINAL", v: tLiq}
-            ];
+            let vv = n(localStorage.getItem("vv_" + startOfWeek.toISOString().split('T')[0]));
+            let tx = (tU+tB) * 0.08;
+
+            rows.push([`SEMANA: ${startOfWeek.toLocaleDateString('pt-PT')} a ${endOfWeek.toLocaleDateString('pt-PT')}`]);
+            rows.push(["DIA", "UBER", "BOLT", "EXTRA", "RESUMO", "VALOR", "DETALHE DESPESAS SEMANA"]);
+            
             for(let i=0; i<7; i++) {
-                let wd = weekData[i];
-                let rm = resumoMap[i];
-                rows.push([wd.dStr, wd.u, wd.b, wd.t, "", rm.k, rm.v]);
+                let resK = ["Bruto Apps", "Ganhos Extras", "Taxas (8%)", "Via Verde", "Custos Totais", "LÍQUIDO RECEBER", "LÍQUIDO REAL"][i] || "";
+                let resV = [tU+tB, tEx, tx, vv, tD, (tU+tB - (tx+vv+tR)), (tU+tB+tEx-(tx+vv+tD))][i] || "";
+                let expDetail = weekExpenses[i] || "";
+                rows.push([weekData[i].date, weekData[i].uber, weekData[i].bolt, weekData[i].extra, resK, resV, expDetail]);
             }
-            rows.push([]); rows.push([]);
+            // Se houver mais despesas que dias (mais de 7), adiciona o resto na coluna
+            if (weekExpenses.length > 7) {
+                for (let j = 7; j < weekExpenses.length; j++) {
+                    rows.push(["", "", "", "", "", "", weekExpenses[j]]);
+                }
+            }
+
+            rows.push([]); 
             startOfWeek.setDate(startOfWeek.getDate() + 7);
         }
         let ws = XLSX.utils.aoa_to_sheet(rows);
-        XLSX.utils.book_append_sheet(wb, ws, "Relatorio Semanal");
-        XLSX.writeFile(wb, `Relatorio_${dataRef.getMonth()+1}_${dataRef.getFullYear()}.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, "Relatorio");
+        XLSX.writeFile(wb, `Relatorio_${month+1}_${year}.xlsx`);
     }
 
     render();
